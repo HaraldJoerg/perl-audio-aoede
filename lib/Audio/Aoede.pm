@@ -27,8 +27,8 @@ sub sine_wave ($frequency) {
 sub write_wav ($samples) {
     use Audio::Aoede::LPCM;
     my $lpcm = Audio::Aoede::LPCM->new(
-    rate => $rate,
-    data => short($samples * 2**14)->get_dataref->$*,
+        rate => $rate,
+        data => short($samples * 2**14)->get_dataref->$*,
     );
     $lpcm->write_wav('/tmp/sine.wav');
 }
