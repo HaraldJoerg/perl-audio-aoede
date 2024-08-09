@@ -12,12 +12,9 @@ my $muse = Audio::Aoede->new(
 );
 
 my $bigben = <<END_OF_SCORE;
-A3:𝅘𝅥  C♯4:𝅘𝅥 B3:𝅘𝅥  E3:𝅗𝅥
-A3:𝅘𝅥  B3:𝅘𝅥  C♯4:𝅘𝅥 A3:𝅗𝅥
-C♯4:𝅘𝅥 A3:𝅘𝅥  B3:𝅘𝅥  E3:𝅗𝅥
-E3:𝅘𝅥  B3:𝅘𝅥  C♯4:𝅘𝅥 A3:𝅗𝅥
+A3:𝅘𝅥  C♯4:𝅘𝅥 B3:𝅘𝅥  E3:𝅗𝅥  A3:𝅘𝅥  B3:𝅘𝅥  C♯4:𝅘𝅥 A3:𝅗𝅥
+C♯4:𝅘𝅥 A3:𝅘𝅥  B3:𝅘𝅥  E3:𝅗𝅥  E3:𝅘𝅥  B3:𝅘𝅥  C♯4:𝅘𝅥 A3:𝅗𝅥
 END_OF_SCORE
-
 
 my $voice = Audio::Aoede::Voice->new(function => sine_wave());
 for my $note (split /\s+/, $bigben) {
@@ -25,6 +22,10 @@ for my $note (split /\s+/, $bigben) {
     $voice->add_named_note($note);
 }
 $muse->write($voice);
+
+my $rest = Audio::Aoede::Voice->new(function => sine_wave());
+$rest->add_named_note('𝄼');
+$muse->write($rest);
 
 my $bigben_ascii = <<END_OF_SCORE;
 A2:1/4  C#3:1/4 B2:1/4  E2:1/2
