@@ -1,36 +1,77 @@
 # ABSTRACT: Create and Analyze Sound
 package Audio::Aoede 0.01;
 use 5.032;
+use Feature::Compat::Class;
 use feature 'signatures';
 no warnings 'experimental';
+
+class Audio::Aoede {
+    use File::Temp;
+
+    use Audio::Aoede::LPCM;
+    use Audio::Aoede::Player::WAV;
+    use Audio::Aoede::Player::SoX;
+
+    field $rate :param = 44100;
+    field $channels = 1;
+    field $bits = 16;
+    field $samples;
+    field @voices;
+    field $player :param = Audio::Aoede::Player::WAV->new;
+
+    my $amplitude = 2**15-1;
+
+    ADJUST {
+        if ($player eq 'sox') {
+            $player = Audio::Aoede::Player::SoX->new(
+                rate => $rate,
+                bits => $bits,
+                channels => $channels
+            );
+        }
+    }
+
+    
+    # FIXME: This is still all single channel stuff
+
+=head2 write_wav - write samples as a .wav file
+
+FIXME: Only works with one channel right now.
+
+=cut
+    method player {
+        return $player;
+    }
+
+    method write ($voice) {
+        my $samples = $voice->samples;
+        my $lpcm = Audio::Aoede::LPCM->new(
+            rate     => $rate,
+            bits     => $bits,
+            encoding => 'signed-integer',
+            channels => $channels,
+            data     => short($samples * $amplitude)->get_dataref->$*,
+        );
+        $player->write_lpcm($lpcm);
+    }
+
+}
 
 use Exporter 'import';
 our @EXPORT_OK = qw( sine_wave );
 
-our $rate = 44100;
 use PDL;
-use constant pi => atan2(0,-1); # Math::Trig collides with PDL
+use Audio::Aoede::Units qw( PI rate );
 
-sub rate { return $rate }
-
-sub sine_wave ($frequency) {
-    my $samples_per_period = Audio::Aoede->rate / $frequency;
-    my $norm = 2 * pi / $samples_per_period;
-    return sub ($n_samples, $since = 0) {
+sub sine_wave () {
+    return sub ($frequency, $n_samples, $since = 0) {
+        my $samples_per_period = rate() / $frequency;
+        my $norm = 2 * PI() / $samples_per_period;
         $since -= int ($since/$samples_per_period);
         my $phase = (sequence($n_samples) + $since) * $norm;
         my $samples = sin($phase);
         return $samples;
     }
-}
-
-sub write_wav ($samples) {
-    use Audio::Aoede::LPCM;
-    my $lpcm = Audio::Aoede::LPCM->new(
-        rate => $rate,
-        data => short($samples * 2**14)->get_dataref->$*,
-    );
-    $lpcm->write_wav('/tmp/sine.wav');
 }
 
 1;

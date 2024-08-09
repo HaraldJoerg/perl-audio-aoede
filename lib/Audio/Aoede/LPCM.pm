@@ -64,9 +64,8 @@ class Audio::Aoede::LPCM 0.01 {
     }
 
 
-    method write_wav ($path) {
-        open (my $wav,'>:raw',$path); # autodie is good enough
-        print $wav 'RIFF';
+    method write_wav ($handle) {
+        print $handle 'RIFF';
         my $header = 'WAVE';
         $header .= 'fmt ';
         $header .= pack('l',16);
@@ -79,11 +78,11 @@ class Audio::Aoede::LPCM 0.01 {
                         $bits,
                     );
         $header .= 'data';
-        print $wav pack('l',length($data) + length($header) + 4);
-        print $wav $header;
-        print $wav pack('l',length($data));
-        print $wav $data;
-        close $wav;
+        print $handle pack('l',length($data) + length($header) + 4);
+        print $handle $header;
+        print $handle pack('l',length($data));
+        print $handle $data;
+        close $handle;
     }
 
 
