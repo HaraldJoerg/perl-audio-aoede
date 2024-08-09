@@ -11,6 +11,5 @@ my $muse = Audio::Aoede->new(
 );
 
 my $voice = Audio::Aoede::Voice->new(function => sine_wave());
-$voice->add_named_note('A4:1');
+$voice->add_named_notes(' A4:1 ');
 $muse->write($voice);
-

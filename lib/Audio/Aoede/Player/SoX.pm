@@ -16,7 +16,6 @@ class Audio::Aoede::Player::SoX
     field $channels :param;
     field %input_properties;
     field $input_buffer = 8192;
-    field $amplitude = 2**15-1;
     field %output_properties;
 
     ADJUST {

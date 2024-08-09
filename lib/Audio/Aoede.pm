@@ -32,14 +32,6 @@ class Audio::Aoede {
         }
     }
 
-    
-    # FIXME: This is still all single channel stuff
-
-=head2 write_wav - write samples as a .wav file
-
-FIXME: Only works with one channel right now.
-
-=cut
     method player {
         return $player;
     }
@@ -48,7 +40,10 @@ FIXME: Only works with one channel right now.
         my @samples = map { $_->samples } @voices;
         my $sum = sumover(pdl(@samples)->transpose);
         my $max = max($sum);
-        my $data = short($sum / $max * $amplitude);
+        if ($max > 1) {
+            $sum /= $max;
+        }
+        my $data = short($sum * $amplitude);
         my $lpcm = Audio::Aoede::LPCM->new(
             rate     => $rate,
             bits     => $bits,

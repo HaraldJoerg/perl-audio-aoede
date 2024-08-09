@@ -83,7 +83,7 @@ class Audio::Aoede::Note {
               )
               $
               (?(DEFINE)
-                  (?<DIGITS>[0-9\/.]*) # 1/4 or 0.5
+                  (?<DIGITS>[0-9\/.]+) # 1/4 or 0.5
               )
          }ix;
         my ($symbol,$duration,$dot);
@@ -102,13 +102,20 @@ class Audio::Aoede::Note {
                 $duration *= 1.5;
             }
         }
-        my $number = $diatonic_notes{$base}
-            + $diatonic_modifiers{$+{modifier}}
-            + ($+{octave}+1) * 12;
-        my $pitch = 2 * A440 * (HALFTONE**($number-69));
-        return __PACKAGE__->new(
-            duration => $duration,
-            pitch    => $pitch
-        );
+        if ($base ne 'R') {
+            my $number = $diatonic_notes{$base}
+                + $diatonic_modifiers{$+{modifier}}
+                + ($+{octave}+1) * 12;
+            my $pitch = 2 * A440 * (HALFTONE**($number-69));
+            return __PACKAGE__->new(
+                duration => $duration,
+                pitch    => $pitch,
+            );
+        }
+        else {
+            return __PACKAGE__->new(
+                duration => $duration,
+            );
+        }
     }
 }
