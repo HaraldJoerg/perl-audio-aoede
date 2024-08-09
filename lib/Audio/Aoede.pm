@@ -68,7 +68,7 @@ use PDL;
 use Audio::Aoede::Units qw( PI rate );
 
 sub sine_wave () {
-    return sub ($frequency, $n_samples, $since = 0) {
+    return sub ($n_samples, $frequency, $since = 0) {
         my $samples_per_period = rate() / $frequency;
         my $norm = 2 * PI() / $samples_per_period;
         $since -= int ($since/$samples_per_period);

@@ -122,14 +122,13 @@ sub named_note2frequency ($note) {
     my ($base,$modifier,$octave,$duration) =
         parse_note($note);
     if ($base eq 'R') {
-        return (0, $duration * $rate * $tempo / 250_000);
+        return ($duration * $rate * $tempo / 250_000);
     } else {
         my $number = $diatonic_notes{$base}
             + $diatonic_modifiers{$modifier}
             + ($octave+1) * 12;
         my $n_samples = $duration * $rate * $tempo / 250_000;
-        return (2 * A440 * (HALFTONE**($number-69)),$n_samples);
+        return ($n_samples, 2 * A440 * (HALFTONE**($number-69)));
     }
 }
-
 
