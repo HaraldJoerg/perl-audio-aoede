@@ -9,12 +9,12 @@ no warnings 'experimental';
 
 use Exporter 'import';
 our @EXPORT_OK = qw(
-                       HALFTONE
+                       A440
                        CENT
+                       HALFTONE
                        PI
-                       duration2samples
-                       named_note2frequency
                        rate
+                       tempo
                );
 
 use Carp;
@@ -24,111 +24,20 @@ use constant A440     => 440;
 use constant HALFTONE => 2**(1/12);
 use constant CENT     => 2**(1/1200);
 
-my %diatonic_notes = (
-    C => 0,   D => 2,   E => 4,   F => 5,   G => 7,   A => 9,   B => 11,
-);
-my %diatonic_modifiers = (
-    ''  =>  0,
-    'b' => -1,   '♭' => -1,
-    '#' =>  1,   '♯' =>  1,
-);
-my %note_symbols = (
-    '𝅝' => 1,             # U+1D15D MUSICAL SYMBOL WHOLE NOTE
-    '𝅗𝅥' => 1/2,           # U+1D15E MUSICAL SYMBOL HALF NOTE
-    '𝅘𝅥' => 1/4,           # U+1D15F MUSICAL SYMBOL QUARTER NOTE
-    '𝅘𝅥𝅮' => 1/8,           # U+1D160 MUSICAL SYMBOL EIGHTH NOTE
-    '𝅘𝅥𝅯' => 1/16,          # U+1D161 MUSICAL SYMBOL SIXTEENTH NOTE
-    '𝅘𝅥𝅰' => 1/32,          # U+1D162 MUSICAL SYMBOL THIRTY-SECOND NOTE
-    '𝅘𝅥𝅱' => 1/64,          # U+1D163 MUSICAL SYMBOL SIXTY-FOURTH NOTE
-    '𝅘𝅥𝅲' => 1/128,         # U+1D164 M. S. ONE HUNDRED TWENTY-EIGHTH NOTE
-);
-my $note_symbol_pattern = '[' . join('', keys %note_symbols) . ']';
-my $note_dot = '𝅭';        # U+1D16D MUSICAL SYMBOL COMBINING AUGMENTATION DOT
-my %rest_symbols = (
-    '𝄻' => 1,             # U+1D13B MUSICAL SYMBOL WHOLE REST
-    '𝄼' => 1/2,            # U+1D13C MUSICAL SYMBOL HALF REST
-    '𝄽' => 1/4,            # U+1D13D MUSICAL SYMBOL QUARTER REST
-    '𝄾' => 1/8,            # U+1D13E MUSICAL SYMBOL EIGHTH REST
-    '𝄿' => 1/16,           # U+1D13F MUSICAL SYMBOL SIXTEENTH REST
-    '𝅀' => 1/32,           # U+1D140 MUSICAL SYMBOL THIRTY-SECOND REST
-    '𝅁' => 1/64,           # U+1D141 MUSICAL SYMBOL SIXTY-FOURTH REST
-    '𝅂' => 1/128,          # U+1D142 M. S. ONE HUNDRED TWENTY-EIGHTH REST
-);
-my $rest_symbol_pattern = '[' . join('', keys %rest_symbols) . ']';
-
 # The rate (number of samples per second) should only be set once, or
 # left at its default value.
 my $rate = 44100;
 
-sub rate { return $rate };
+sub rate () { return $rate };
 
 # The tempo is a MIDI term giving the number of microseconds per
 # quarter note.  This can be changed.
 my $tempo = 500_000;
 
+sub tempo () {
+    return $tempo;
+}
+
 sub set_tempo ($new_tempo) {
     $tempo = $new_tempo;
 }
-
-# This deserves a separate routine so that it can be thoroughly tested.
-# I'd expect that I want to add even more weird stuff to the notation.
-sub parse_note ($note_string) {
-    $note_string =~
-        m{^
-          (?<base>[A-G])           # The plain note name
-          (?<modifier>[b♭#♯]?)     # up or down half a note, Unicode or ASCII
-          (?<octave>[\d]|-1)       # We don't want to support the tenth octave
-          :                        # Separates pitch from duration
-          (?:                      # durations come in two flavors
-              (?<symbol>$note_symbol_pattern) (?<dot>$note_dot?)
-          |
-              (?<digits>[0-9\/.]*) # 1/4 or 0.5
-          )
-      |
-          (?:
-              (?<rest_symbol>$rest_symbol_pattern)
-          |
-              (?<base>R)
-              :
-              (?<digits>[0-9\/.]*)
-          )
-          $
-     }ix;
-    my ($modifier,$octave,$symbol,$duration,$dot);
-    my $base = $+{base} // 'R'; # undefined in case of a rest symbol
-    if (my $digits = $+{digits}) {
-        $duration = eval $digits;
-    }
-    else {
-        if ($+{symbol} && $note_symbols{$+{symbol}}) {
-            $duration = $note_symbols{$+{symbol}};
-        }
-        elsif (my $rest = $+{rest_symbol}) {
-            $duration = $rest_symbols{$rest};
-        }
-        else {
-            croak "Invalid score: No duration in '$note_string'";
-        }
-        if ($dot) {
-            $duration *= 1.5;
-        }
-    }
-    return ($base, $+{modifier}, $+{octave}, $duration);
-}
-
-# Calculate the frequency of a note given by name, in equal-tempered
-# tuning
-sub named_note2frequency ($note) {
-    my ($base,$modifier,$octave,$duration) =
-        parse_note($note);
-    if ($base eq 'R') {
-        return ($duration * $rate * $tempo / 250_000);
-    } else {
-        my $number = $diatonic_notes{$base}
-            + $diatonic_modifiers{$modifier}
-            + ($octave+1) * 12;
-        my $n_samples = $duration * $rate * $tempo / 250_000;
-        return ($n_samples, 2 * A440 * (HALFTONE**($number-69)));
-    }
-}
-

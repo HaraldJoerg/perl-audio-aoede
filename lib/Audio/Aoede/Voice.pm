@@ -9,16 +9,17 @@ no warnings 'experimental';
 class Audio::Aoede::Voice {
     use PDL;
 
-    use Audio::Aoede::Units qw( named_note2frequency
-                          );
+    use Audio::Aoede::Note;
+    use Audio::Aoede::Units qw( rate tempo );
 
     field $function :param;
     field $samples = pdl([]);
 
-    method add_named_note($note) {
-        my ($n_samples,$frequency) = named_note2frequency($note);
-        if ($frequency) {
-            $samples = $samples->append($function->($n_samples,$frequency));
+    method add_named_note($note_string) {
+        my $note = Audio::Aoede::Note->parse_note($note_string);
+        my $n_samples = $note->duration() * rate() * tempo() / 250_000;
+        if (my $pitch = $note->pitch) {
+            $samples = $samples->append($function->($n_samples,$pitch));
         }
         else {
             $samples = $samples->append(zeroes($n_samples));
