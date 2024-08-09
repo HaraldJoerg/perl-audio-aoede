@@ -64,9 +64,7 @@ class Audio::Aoede::Note {
     sub parse_note ($class,$note_string) {
         $note_string =~
             m{^
-              (?<base>[A-G])       # The plain note name
-              (?<modifier>[b♭#♯]?) # up or down half a note, Unicode or ASCII
-              (?<octave>[\d]|-1)   # We don't want to support the tenth octave
+              (?<notes>(?&NOTE)(?:\+(?&NOTE))*)
               :                    # Separates pitch from duration
               (?:                  # durations come in two flavors
                   (?<symbol>$note_symbol_pattern) (?<dot>$note_dot?)
@@ -84,10 +82,14 @@ class Audio::Aoede::Note {
               $
               (?(DEFINE)
                   (?<DIGITS>[0-9\/.]+) # 1/4 or 0.5
+                  (?<NOTE>
+                      [A-G]     # The base note name
+                      [b♭#♯]?   # up or down half a note, Unicode or ASCII
+                      (?:[\d]|-1) # We don't want to support the tenth octave
+                  )
               )
          }ix;
-        my ($symbol,$duration,$dot);
-        my $base = $+{base} // 'R'; # undefined in case of a rest symbol
+        my $duration;
         if (my $digits = $+{digits}) {
             $duration = eval $digits;
         } else {
@@ -98,24 +100,31 @@ class Audio::Aoede::Note {
             } else {
                 croak "Invalid score: No duration in '$note_string'";
             }
-            if ($dot) {
+            if ($+{dot}) {
                 $duration *= 1.5;
             }
         }
-        if ($base ne 'R') {
-            my $number = $diatonic_notes{$base}
-                + $diatonic_modifiers{$+{modifier}}
-                + ($+{octave}+1) * 12;
-            my $pitch = 2 * A440 * (HALFTONE**($number-69));
-            return __PACKAGE__->new(
-                duration => $duration,
-                pitch    => $pitch,
-            );
+        if ($+{notes}) {
+            my @notes = split /\+/,$+{notes};
+            return map {
+                m{(?<base>[A-G])
+                  (?<modifier>[b♭#♯]?) #
+                  (?<octave>[\d]|-1)
+             }ix;
+                my $number = $diatonic_notes{$+{base}}
+                    + $diatonic_modifiers{$+{modifier}}
+                    + ($+{octave}+1) * 12;
+                my $pitch = 2 * A440 * (HALFTONE**($number-69));
+                __PACKAGE__->new(
+                    duration => $duration,
+                    pitch    => $pitch,
+                );
+            } @notes;
         }
         else {
             return __PACKAGE__->new(
                 duration => $duration,
             );
         }
-    }
+     }
 }
