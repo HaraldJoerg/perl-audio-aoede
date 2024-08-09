@@ -7,6 +7,7 @@ no warnings 'experimental';
 
 class Audio::Aoede {
     use File::Temp;
+    use PDL;
 
     use Audio::Aoede::LPCM;
     use Audio::Aoede::Player::WAV;
@@ -19,7 +20,7 @@ class Audio::Aoede {
     field @voices;
     field $player :param = Audio::Aoede::Player::WAV->new;
 
-    my $amplitude = 2**15-1;
+    my $amplitude = 2**14;
 
     ADJUST {
         if ($player eq 'sox') {
@@ -43,14 +44,17 @@ FIXME: Only works with one channel right now.
         return $player;
     }
 
-    method write ($voice) {
-        my $samples = $voice->samples;
+    method write (@voices) {
+        my @samples = map { $_->samples } @voices;
+        my $sum = sumover(pdl(@samples)->transpose);
+        my $max = max($sum);
+        my $data = short($sum / $max * $amplitude);
         my $lpcm = Audio::Aoede::LPCM->new(
             rate     => $rate,
             bits     => $bits,
             encoding => 'signed-integer',
             channels => $channels,
-            data     => short($samples * $amplitude)->get_dataref->$*,
+            data     => $data->get_dataref->$*,
         );
         $player->write_lpcm($lpcm);
     }

@@ -16,8 +16,8 @@ class Audio::Aoede::Voice {
     field $function :param;
     field $samples = pdl([]);
 
-    method add_named_note($note,$duration) {
-        my $frequency = named_note2frequency($note);
+    method add_named_note($note) {
+        my ($frequency,$duration) = named_note2frequency($note);
         my $n_samples = duration2samples($duration);
         $samples = $samples->append($function->($frequency,$n_samples));
     }
