@@ -18,15 +18,16 @@ class Audio::Aoede::Voice {
     method add_named_notes($notes_string) {
         my @note_strings = split " ",$notes_string; # " " strips leading spaces
         for my $note_string(@note_strings) {
-            my @notes = Audio::Aoede::Note->parse_note($note_string);
-            my $note = $notes[0];
+            my $note = Audio::Aoede::Note->parse_note($note_string);
             my $n_samples = $note->duration() * rate() * tempo() / 250_000;
-            if (my $pitch = $note->pitch) {
-                $samples = $samples->append($function->($n_samples,$pitch));
-            }
-            else {
-                $samples = $samples->append(zeroes($n_samples));
-            }
+            my @pitches = $note->pitches;
+            my $new_samples = @pitches ?
+                sumover pdl(map {
+                    $function->($n_samples,$_)
+                } $note->pitches)->transpose
+            :
+                zeroes($n_samples);
+            $samples = $samples->append($new_samples);
         }
     }
 

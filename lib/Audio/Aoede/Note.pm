@@ -15,19 +15,24 @@ class Audio::Aoede::Note {
     use Audio::Aoede::Units qw( A440 HALFTONE );
 
     field $duration :param;
-    field $pitch    :param = undef;
+    field $pitches  :param = [];
+    field @pitches;
 
+    ADJUST {
+        @pitches = @$pitches;
+        undef $pitches;
+    }
 
     method duration () {
         return $duration;
     }
 
 
-    method pitch () {
-        return $pitch;
+    method pitches () {
+        return @pitches;
     }
 
-    
+
     my %diatonic_notes = (
         C => 0,   D => 2,   E => 4,   F => 5,   G => 7,   A => 9,   B => 11,
     );
@@ -106,7 +111,7 @@ class Audio::Aoede::Note {
         }
         if ($+{notes}) {
             my @notes = split /\+/,$+{notes};
-            return map {
+            my @pitches = map {
                 m{(?<base>[A-G])
                   (?<modifier>[b♭#♯]?) #
                   (?<octave>[\d]|-1)
@@ -115,11 +120,11 @@ class Audio::Aoede::Note {
                     + $diatonic_modifiers{$+{modifier}}
                     + ($+{octave}+1) * 12;
                 my $pitch = 2 * A440 * (HALFTONE**($number-69));
-                __PACKAGE__->new(
-                    duration => $duration,
-                    pitch    => $pitch,
-                );
             } @notes;
+            return __PACKAGE__->new(
+                duration => $duration,
+                pitches  => \@pitches,
+            );
         }
         else {
             return __PACKAGE__->new(
