@@ -31,6 +31,21 @@ class Audio::Aoede::Voice {
         }
     }
 
+
+    method add_notes(@notes) {
+        for my $note (@notes) {
+           my $n_samples = $note->duration() * rate() * tempo() / 250_000;
+            my @pitches = $note->pitches;
+            my $new_samples = @pitches ?
+                sumover pdl(map {
+                    $function->($n_samples,$_)
+                } $note->pitches)->transpose
+            :
+                zeroes($n_samples);
+            $samples = $samples->append($new_samples);
+        }
+    }
+
     method samples() {
         return $samples;
     }

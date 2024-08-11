@@ -1,0 +1,159 @@
+package Audio::Aoede::MusicRollText::Format; # make tools happy
+
+1;
+
+=encoding utf8
+
+=head1 NAME
+
+Audio::Aoede::MusicRollText::Format - a description of the data format
+
+=head1 DESCRIPTION
+
+The L<Audio::Aoede> suite uses its own text format for "music rolls".
+A traditional music roll is a storage medium holding the musical score
+for a mechanical instrument, and Music Roll Text (MRT) files are the
+digital equivalent for the L<Audio::Aoede::BarrelOrgan>.
+
+This document is the specification of the format used in MRT files.
+
+=head2 Purpose
+
+MRT files are intended to be easily human-writable and also
+human-readable.  This makes them different from L<MIDI|/#MIDI> files.  MIDI
+files can contain information which can not - or at least not yet -
+encoded in MRT files.
+
+=head2 General Format
+
+MRT files are text files encoded in UTF-8.  They are line-oriented: no
+syntax constructs spans more than a line.
+
+=head2 Empty Lines
+
+Lines with only spaces (blanks, tabs) are ignored by the parser.
+
+=head2 Comments
+
+Lines starting with a C<#> are comments.
+
+I have not yet decided whether and how I want metadata to be "special"
+comments.
+
+=head2 Commands
+
+Lines starting with an exclamation mark C<!> are command lines.
+The command names immediately follow the exclamation marks.
+
+=head3 C<!set>
+
+Sets parameters for this score, as C<key = value> pairs.  Several key/value pairs can be set in one line, separated by semicolons C<;>.
+
+Valid keys are:
+
+=over
+
+=item C<bpm = I<n>>
+
+Sets the speed, in units of beats per minute.  One beat has the length
+of a quarter note.  You can use the unicode symbol C<𝅘𝅥> for a quarter
+note as an alias.
+
+The default is C<𝅘𝅥=120>, as in MIDI.
+
+=item C<tracks = I<n>>
+
+Sets the number of tracks, the default is C<tracks=1>.  For I<n>
+tracks, the notes are read as groups of I<n> lines: The first line
+holds notes for the first track, the second line holds notes for the
+second track, and so on.  The tracks of a group of line must all have
+the same length in notes.
+
+If you have several tracks, I recommend to add an
+L<empty line|/#Empty Lines>
+after the last track for visually grouping them together.
+
+=back
+
+Examples:
+
+  # The default settings
+  !set bpm=120; tracks=1
+
+  # A bit slower, with two tracks
+  !set 𝅘𝅥=80; tracks=2
+
+=head2 Notes
+
+Every line which is not an empty line, a comment or a command contains
+a space-separated list of tokens.  The tokens are:
+
+=over
+
+=item Notes or Chords
+
+A note/chord consists of a duration, a colon C<:> and a list of note
+names, separated by plus C<+> signs.  The duration can be given as a
+musical note symbol like C<𝅘𝅥𝅯> for a sixteenth note or as a fraction
+C<1/16> or floating point number C<0.0625>.
+
+A note name consists of a letter from the set C<ABCDEFG>, an optional
+modifier to raise or lower the note by one half note from the set
+C<#♯b♭>, and a number for the octave in the range from -1 to 9.  C<C4>
+is the "middle C", and C<A4> the pitch standard (usually 440Hz).
+
+Examples:
+
+   # A quarter note playing a C major chord at "middle C"
+   1/4:C4+E4+G4
+
+   # A quarter note playing C a minor chord, using unicode symbols
+   𝅘𝅥:C4+E♭4+G4
+
+=item Bar Lines
+
+Bar lines are not played.  They can be used to guide human readers but
+are not (yet) used by the parser.
+
+=back
+
+=head1 EXAMPLES
+
+   # Most people recognize this tune from four tones
+   !set tracks=2; bpm=142
+   1/4:Bb3 1/4:F4  1/4:G3 | 9/4:E4 |
+   3/4:R                  | 9/4:G2 |
+
+Or, using unicode characters from the MUSICAL SYMBOLS block,
+
+   !set tracks=2; bpm=142
+   # we have no symbol for tied notes yet, so just add the durations
+   𝅘𝅥:B♭4 𝅘𝅥:F5 𝅘𝅥:G4 𝄀 9/4:E5 𝄀
+   𝄼𝅭              𝄀 9/4:G2 𝄀
+
+
+=head1 AUTHOR
+
+Harald Jörg, E<lt>haj@posteo.deE<gt>
+
+=head1 COPYRIGHT AND LICENSE
+
+Copyright 2024 Harald Jörg
+
+This document is free software; you may redistribute it and/or modify
+it under the same terms as Perl itself.
+
+=head1 AUTHOR
+
+Harald Jörg, E<lt>haj@posteo.deE<gt>
+
+=head1 SEE ALSO
+
+=over
+
+=item MIDI
+
+The MIDI files standard Published by the MIDI Association at
+L<https://midi.org/standard-midi-files>.
+
+=back

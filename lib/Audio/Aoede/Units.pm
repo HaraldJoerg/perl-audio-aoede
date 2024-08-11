@@ -41,3 +41,7 @@ sub tempo () {
 sub set_tempo ($new_tempo) {
     $tempo = $new_tempo;
 }
+
+sub set_bpm ($bpm) {
+    $tempo = 6E7/$bpm;
+}

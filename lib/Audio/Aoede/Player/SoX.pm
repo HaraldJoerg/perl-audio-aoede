@@ -43,6 +43,7 @@ class Audio::Aoede::Player::SoX
               _build_argument_list(%output_properties,
                                    channels => $spec{channels}),
 #	      'sine.wav' ... we could write arbitary formats with SoX
+#              'entertainer.ogg'
               '--default'
           );
         $audio_handle->autoflush(1);

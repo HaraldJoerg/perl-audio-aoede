@@ -1,0 +1,186 @@
+# ABSTRACT: A parser for MRT files
+package Audio::Aoede::MusicRoll::Parser; # for the tools
+
+use 5.032;
+use utf8;                       # for the unicode MUSICAL SYMBOL stuff
+use warnings;
+use feature 'signatures';
+no warnings 'experimental';
+use autodie;                    # being lazy :)
+use Feature::Compat::Class;
+
+use Carp;
+
+use Audio::Aoede::MusicRoll;
+use Audio::Aoede::MusicRoll::Section;
+use Audio::Aoede::Note;
+use Audio::Aoede::Units qw( A440 HALFTONE );
+
+my %diatonic_notes = (
+    C => 0,   D => 2,   E => 4,   F => 5,   G => 7,   A => 9,   B => 11,
+);
+my %diatonic_modifiers = (
+    ''  =>  0,
+    'b' => -1,   '♭' => -1,
+    '#' =>  1,   '♯' =>  1,
+);
+my %note_symbols = (
+    '𝅝' => 1,           # U+1D15D MUSICAL SYMBOL WHOLE NOTE
+    '𝅗𝅥' => 1/2,         # U+1D15E MUSICAL SYMBOL HALF NOTE
+    '𝅘𝅥' => 1/4,         # U+1D15F MUSICAL SYMBOL QUARTER NOTE
+    '𝅘𝅥𝅮' => 1/8,         # U+1D160 MUSICAL SYMBOL EIGHTH NOTE
+    '𝅘𝅥𝅯' => 1/16,        # U+1D161 MUSICAL SYMBOL SIXTEENTH NOTE
+    '𝅘𝅥𝅰' => 1/32,        # U+1D162 MUSICAL SYMBOL THIRTY-SECOND NOTE
+    '𝅘𝅥𝅱' => 1/64,        # U+1D163 MUSICAL SYMBOL SIXTY-FOURTH NOTE
+    '𝅘𝅥𝅲' => 1/128,       # U+1D164 M. S. ONE HUNDRED TWENTY-EIGHTH NOTE
+);
+my $note_symbol_pattern = '[' . join('', keys %note_symbols) . ']';
+my $note_dot = '𝅭'; # U+1D16D MUSICAL SYMBOL COMBINING AUGMENTATION DOT
+
+my %rest_symbols = (
+    '𝄻' => 1,           # U+1D13B MUSICAL SYMBOL WHOLE REST
+    '𝄼' => 1/2,         # U+1D13C MUSICAL SYMBOL HALF REST
+    '𝄽' => 1/4,         # U+1D13D MUSICAL SYMBOL QUARTER REST
+    '𝄾' => 1/8,         # U+1D13E MUSICAL SYMBOL EIGHTH REST
+    '𝄿' => 1/16,        # U+1D13F MUSICAL SYMBOL SIXTEENTH REST
+    '𝅀' => 1/32,        # U+1D140 MUSICAL SYMBOL THIRTY-SECOND REST
+    '𝅁' => 1/64,        # U+1D141 MUSICAL SYMBOL SIXTY-FOURTH REST
+    '𝅂' => 1/128,       # U+1D142 M. S. ONE HUNDRED TWENTY-EIGHTH REST
+);
+my $rest_symbol_pattern = '[' . join('', keys %rest_symbols) . ']';
+
+my %key_map = (
+    '𝅘𝅥' => 'bpm'
+);
+
+my $note_pattern =
+    qr{
+          ^
+          (?:                 # durations come in two flavors
+              (?<symbol>$note_symbol_pattern) (?<dot>$note_dot?)
+          |
+              (?<digits>(?&DIGITS))
+          )
+          :                   # Separates pitch from duration
+          (?<notes>(?&NOTE)(?:\+(?&NOTE))*)
+      |
+          (?:                 # Rests also come in two flavors
+              (?<rest_symbol>$rest_symbol_pattern)
+          |
+              (?<digits>(?&DIGITS))
+              :
+              (?<base>R)
+          )
+          $
+          (?(DEFINE)
+              (?<DIGITS>[0-9\/.]+) # 1/4 or 0.5
+              (?<NOTE>
+                  [A-G]       # The base note name
+                  [b♭#♯]?     # up or down half a note, Unicode or ASCII
+                  (?:[\d]|-1) # We don't support the tenth octave
+              )
+          )
+          #          |
+          #              (?<bar>[|𝄀])
+          #          |
+          #              (?<repeat_start> \|\|: | 𝄆 )
+          #          |
+          #              (?<repeat_end> :\|\| | 𝄇 )
+  }ix;
+my $comment_pattern = qr{ ^ \# }x;
+my $command_pattern = qr{ ^ ! (?<command>\w+) \s+ (?<params>.*) }x;
+
+sub parse_file ($path) {
+    my %default_params = (bpm => 120, tracks => 1);
+    my %params = %default_params;
+    my @tracks;
+    my $current_track = 0;
+    my $music_roll = Audio::Aoede::MusicRoll->new();
+    open (my $score, '<:encoding(UTF-8)', $path);
+  LINE:
+    while (my $line = <$score>) {
+        next LINE if ($line !~ /\S/);
+        next LINE if ($line =~ /$comment_pattern/);
+        $line =~ /$command_pattern/  and  do {
+            $+{command} eq 'set'  and  do {
+                # We have a new section, so close the old one
+                $current_track = 0;
+                if (@tracks) {
+                    $music_roll->add_section(
+                        Audio::Aoede::MusicRoll::Section->new(
+                            bpm => $params{bpm},
+                            tracks => [@tracks],
+                        )
+                    );
+                }
+                my @settings = split /\s*;\s*/,$+{params};
+                %params = (%default_params, map {
+                    my ($key,$value) = split /\s*=\s*/,$_,2;
+                    $key = $key_map{$key} // $key;
+                    ($key,$value);
+                } @settings);
+                @tracks = (map { [] } (1..$params{tracks}));
+            };
+            next LINE;
+        };
+        # Now we know we have a notes line
+        my @tokens = split /\s+/, $line;
+        my @notes = map {
+            my $note_string = $_;
+            my $note;
+            $note_string =~ /$note_pattern/  and  do {
+                my $duration;
+                if (my $digits = $+{digits}) {
+                    $duration = eval $digits;
+                } else {
+                    if (my $symbol = $+{symbol}) {
+                        $duration = $note_symbols{$symbol};
+                    } elsif (my $rest = $+{rest_symbol}) {
+                        $duration = $rest_symbols{$rest};
+                    } else {
+                        croak "Invalid score: No duration in '$note_string'";
+                    }
+                    if ($+{dot}) {
+                        $duration *= 1.5;
+                    }
+                }
+                if ($+{notes}) {
+                    my @notes = split /\+/,$+{notes};
+                    my @pitches = map {
+                        m{(?<base>[A-G])
+                          (?<modifier>[b♭#♯]?) #
+                          (?<octave>[\d]|-1)
+                     }ix;
+                        my $number = $diatonic_notes{$+{base}}
+                            + $diatonic_modifiers{$+{modifier}}
+                            + ($+{octave}+1) * 12;
+                        my $pitch = 2 * A440 * (HALFTONE**($number-69));
+                    } @notes;
+                    $note = Audio::Aoede::Note->new(
+                        duration => $duration,
+                        pitches  => \@pitches,
+                    );
+                } else {
+                    # No note => Treat it as a rest
+                    $note = Audio::Aoede::Note->new(
+                        duration => $duration,
+                    );
+                }
+            };
+            $note // ();
+        } @tokens;
+        push $tracks[$current_track]->@*,@notes;
+        $current_track += 1;
+        $current_track %= $params{tracks};
+    }
+  FINALIZE:                  # All lines read, process current section
+    $music_roll->add_section(
+        Audio::Aoede::MusicRoll::Section->new(
+            bpm => $params{bpm},
+            tracks => [@tracks],
+        )
+    );
+    return $music_roll;
+}
+
+1;
