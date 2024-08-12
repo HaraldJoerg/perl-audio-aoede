@@ -7,7 +7,6 @@ use FindBin;
 use lib "$FindBin::Bin/../lib";
 
 my $path = $ARGV[0] || '../eg/entertainer.mrt';
-use Audio::Aoede::MusicRoll;
 use Audio::Aoede qw( sine_wave );
 
 my $aoede = Audio::Aoede->new(player => 'sox');
@@ -34,6 +33,28 @@ This program and the libraries providing the features have been
 created as a side effect from some other work and turned out to be a
 lot of fun.  They are far from mature, and the author frequently
 refactors things, so absolutely I<nothing> is guaranteed.
+The software is not supposed to be installed in its current state.
+It can be cloned from its
+L<https://github.com/HaraldJoerg/perl-audio-aoede|GitHub repository>
+and the program be run from its C<bin> directory.
 
-=cut
+I will I<try> to keep the
+L<Audio::Aoede::MusicRoll::Format|MRT format>
+compatible, though, so that newer versions of the player can
+play MRT files written for an older one.
 
+=head1 ERRORS
+
+If the MRT file can not be found, or contains stuff which can not be
+parsed, the program exits with an error message.
+
+=head1 AUTHOR
+
+Harald Jörg, E<lt>haj@posteo.deE<gt>
+
+=head1 COPYRIGHT AND LICENSE
+
+Copyright 2024 Harald Jörg
+
+This program is free software; you may redistribute it and/or modify
+it under the same terms as Perl itself.

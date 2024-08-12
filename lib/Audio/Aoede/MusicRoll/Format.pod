@@ -131,7 +131,6 @@ Or, using unicode characters from the MUSICAL SYMBOLS block,
    𝅘𝅥:B♭4 𝅘𝅥:F5 𝅘𝅥:G4 𝄀 9/4:E5 𝄀
    𝄼𝅭              𝄀 9/4:G2 𝄀
 
-
 =head1 AUTHOR
 
 Harald Jörg, E<lt>haj@posteo.deE<gt>
@@ -142,10 +141,6 @@ Copyright 2024 Harald Jörg
 
 This document is free software; you may redistribute it and/or modify
 it under the same terms as Perl itself.
-
-=head1 AUTHOR
-
-Harald Jörg, E<lt>haj@posteo.deE<gt>
 
 =head1 SEE ALSO
 

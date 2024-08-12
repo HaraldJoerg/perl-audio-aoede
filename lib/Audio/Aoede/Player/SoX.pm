@@ -121,3 +121,13 @@ Convert a hash to C<--key=value> command line parameters for SoX.  A
 value of undef in the hash denotes a parameter which doesn't take a
 value.
 
+=head1 AUTHOR
+
+Harald Jörg, E<lt>haj@posteo.deE<gt>
+
+=head1 COPYRIGHT AND LICENSE
+
+Copyright 2024 Harald Jörg
+
+This module is free software; you may redistribute it and/or modify it
+under the same terms as Perl itself.

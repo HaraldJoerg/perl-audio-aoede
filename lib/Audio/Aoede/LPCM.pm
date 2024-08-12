@@ -121,6 +121,8 @@ class Audio::Aoede::LPCM 0.01 {
 
 __END__
 
+=encoding utf8
+
 =head1 NAME
 
 Audio::Aoede::LPCM - Linear Pulse-Code Modulated Data
@@ -223,6 +225,17 @@ The Wikipedia article about the Waveform audio file format.
 
 =back
 
+=head1 AUTHOR
+
+Harald Jörg, E<lt>haj@posteo.deE<gt>
+
+=head1 COPYRIGHT AND LICENSE
+
+Copyright 2024 Harald Jörg
+
+This document is free software; you may redistribute it and/or modify
+it under the same terms as Perl itself.
+
 =head1 SEE ALSO
 
 =over
@@ -232,3 +245,4 @@ The Wikipedia article about the Waveform audio file format.
 A CPAN distribution for reading and writing WAV files
 
 =back
+

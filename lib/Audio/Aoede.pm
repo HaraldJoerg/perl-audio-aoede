@@ -72,6 +72,7 @@ class Audio::Aoede {
             }
         }
         $self->write(@voices);
+        return;
     }
 }
 
@@ -93,3 +94,93 @@ sub sine_wave () {
 }
 
 1;
+
+__END__
+
+=head1 NAME
+
+Audio::Aoede - the entry point to Aoede sound
+
+=head1 SYNOPSIS
+
+  my $aoede = Audio::Aoede->new(player => 'sox');
+  $aoede->play_roll($path);
+
+=head1 DESCRIPTION
+
+In case you are wondering: Aoede is the muse of voice and song in
+ancient Boeotia.  I was looking for a name unlikely to collide with
+anything else.
+
+This module is the untidy catch-all for stuff which has failed to find
+its place in the class taxonomy so far.  Expect its contents to be
+rather volatile, and the interface unstable.  Methods not documented
+here are likely to be moved elsewhere without notice.
+
+=head1 METHODS
+
+=over
+
+=item C<< $aoede = Audio::Aoede->new(%params) >>
+
+Create a new aoede object.  The keys for the C<%params> hash are:
+
+=over
+
+=item C<rate>
+
+The whole suite operates at one fixed rate of sound samples per
+second.  The default value is 44100, the rate used by audio CDs.
+
+=item C<channels>
+
+The number of audio channels.  Defaults to 1.
+
+Right now, more than one channel is not supported by code in this
+repository.
+
+=item bits
+
+The number of bits per audio sample.  Defaults to 16.
+
+This should not even be a parameter right now because the software
+only works with 16 bits.
+
+It is very unlikely that we'll ever support 24-bit sound: The current
+implementation uses L<PDL>, therefore a sample must be represented by
+a data type known my PDL.  The data types of PDL are native types of
+the C programming language, and C has no type with a width of 24 bits.
+
+=item player
+
+Per default, Aoede writes its sound output as WAV files.  I recommend
+to install L<SoX|https://sourceforge.net/projects/sox/> (also
+available as package C<sox> in Linux distributions).  If you have done so, you can activate this player as
+
+   player => 'sox'
+
+SoX can be used to play sound directly on your sound card, but also to
+convert Aoede sound to a variety of sound formats.  We have no
+interface for this right now, sorry.
+
+=back
+
+=item C<play_roll($path)>
+
+Play a music roll presented as a
+L<MRT file|Audio::Aoede::MusicRoll::Format>.
+
+=back
+
+=head1 AUTHOR
+
+Harald Jörg, E<lt>haj@posteo.deE<gt>
+
+=head1 COPYRIGHT AND LICENSE
+
+Copyright 2024 Harald Jörg
+
+This module is free software; you may redistribute it and/or modify it
+under the same terms as Perl itself.
+
+

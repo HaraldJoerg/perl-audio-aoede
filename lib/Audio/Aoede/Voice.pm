@@ -15,22 +15,23 @@ class Audio::Aoede::Voice {
     field $function :param;
     field $samples = pdl([]);
 
-    method add_named_notes($notes_string) {
-        my @note_strings = split " ",$notes_string; # " " strips leading spaces
-        for my $note_string(@note_strings) {
-            my $note = Audio::Aoede::Note->parse_note($note_string);
-            my $n_samples = $note->duration() * rate() * tempo() / 250_000;
-            my @pitches = $note->pitches;
-            my $new_samples = @pitches ?
-                sumover pdl(map {
-                    $function->($n_samples,$_)
-                } $note->pitches)->transpose
-            :
-                zeroes($n_samples);
-            $samples = $samples->append($new_samples);
-        }
-    }
-
+    # Currently defunct, I might want to enable it (again) later.
+    #
+    # method add_named_notes($notes_string) {
+    #     my @note_strings = split " ",$notes_string; # " " strips leading spaces
+    #     for my $note_string(@note_strings) {
+    #         my $note = Audio::Aoede::Note->parse_note($note_string);
+    #         my $n_samples = $note->duration() * rate() * tempo() / 250_000;
+    #         my @pitches = $note->pitches;
+    #         my $new_samples = @pitches ?
+    #             sumover pdl(map {
+    #                 $function->($n_samples,$_)
+    #             } $note->pitches)->transpose
+    #         :
+    #             zeroes($n_samples);
+    #         $samples = $samples->append($new_samples);
+    #     }
+    # }
 
     method add_notes(@notes) {
         for my $note (@notes) {
@@ -52,3 +53,74 @@ class Audio::Aoede::Voice {
 }
 
 1;
+
+__END__
+
+=encoding utf8
+
+=head1 NAME
+
+Audio::Aoede::Voice - One voice in the Aoede Orchestra
+
+=head1 SYNOPSIS
+
+  use Audio::Aoede::Voice;
+  $voice = Audio::Aoede::Voice->new(function => sub {...})
+
+=head1 DESCRIPTION
+
+This module is about to be changed heavily while the Aoede synthesizer
+is being worked on.
+
+=head1 METHODS
+
+=over
+
+=item C<< $voice = Audio::Aoede::Voice->new(function => \&func) >>
+
+Create a new voice object.  Currently there is only one construction
+paraneter:
+
+=over
+
+=item C<function>
+
+This is a reference to a subroutine which returns the next batch of
+samples.  It takes three parameters: The number of samples, the
+frequency, and the initial sample number (optional, defaults to 0).
+
+Probably the frequency will at some point be optional, too, since
+there are noises which can not be described by one frequency.
+
+The initial sample number is not used yet.  It is intended to support
+voices with low-frequency oscillators.  The voice might be able to
+provude "next" samples and keep track of that value by itself, but
+this fais if there's more than one consumer for the voice (for
+example, a sound backend and an oscilloscope).
+
+Work in progress!
+
+=back
+
+=item C<add_notes(@notes)>
+
+Add a list of L<Audio::Aoede::Note> objects to the voice.
+
+=item C<samples>
+
+Return the samples accumulated so far, as a 1D L<PDL> object.
+
+=back
+
+=head1 AUTHOR
+
+Harald Jörg, E<lt>haj@posteo.deE<gt>
+
+=head1 COPYRIGHT AND LICENSE
+
+Copyright 2024 Harald Jörg
+
+This module is free software; you may redistribute it and/or modify it
+under the same terms as Perl itself.
+
+

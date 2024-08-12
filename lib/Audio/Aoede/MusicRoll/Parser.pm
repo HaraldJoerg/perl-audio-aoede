@@ -184,3 +184,48 @@ sub parse_file ($path) {
 }
 
 1;
+
+__END__
+
+=encoding utf8
+
+=head1 NAME
+
+Audio::Aoede::MusicRoll::Parser - parse MRT files
+
+=head1 SYNOPSIS
+
+  use Audio::Aoede::MusicRoll::Parser;
+  my $music_roll = Audio::Aoede::MusicRoll::Parser::parse_file($path);
+
+=head1 DESCRIPTION
+
+Parse a L<MRT file|Audio::Aoede::MusicRoll::Format> into a
+L<Audio::Aoede::MusicRoll> object.
+
+=head1 SUBROUTINES
+
+This module has only one subroutine.
+
+=over
+
+=item C<< $music_roll = parse_file($path) >>
+
+Read a file from C<$path> and create a L<Audio::Aoede::MusicRoll>
+object from its contents.
+
+Dies when it sees stuff it does not understand.  The error messages
+are not very helpful, I'm afraid.
+
+=back
+
+=head1 AUTHOR
+
+Harald Jörg, E<lt>haj@posteo.deE<gt>
+
+=head1 COPYRIGHT AND LICENSE
+
+Copyright 2024 Harald Jörg
+
+This module is free software; you may redistribute it and/or modify it
+under the same terms as Perl itself.

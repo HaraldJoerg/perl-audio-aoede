@@ -45,3 +45,26 @@ sub set_tempo ($new_tempo) {
 sub set_bpm ($bpm) {
     $tempo = 6E7/$bpm;
 }
+
+__END__
+
+=encoding utf8
+
+=head1 NAME
+
+Audio::Aoede::Units - constants and conversions
+
+=head1 SYNOPSIS
+
+This is an internal module.
+
+=head1 AUTHOR
+
+Harald Jörg, E<lt>haj@posteo.deE<gt>
+
+=head1 COPYRIGHT AND LICENSE
+
+Copyright 2024 Harald Jörg
+
+This module is free software; you may redistribute it and/or modify it
+under the same terms as Perl itself.
