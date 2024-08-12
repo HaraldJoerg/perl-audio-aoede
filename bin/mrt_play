@@ -13,3 +13,27 @@ use Audio::Aoede qw( sine_wave );
 my $aoede = Audio::Aoede->new(player => 'sox');
 $aoede->play_roll($path);
 
+__END__
+
+=head1 NAME
+
+mrt_play - play a music roll text file
+
+=head1 SYNOPSIS
+
+   $ mrt_play ../eg/entertainer.mrt
+
+=head1 DESCRIPTION
+
+This program plays a file in L<Audio::Aoede::MusicRoll::Format|MRT format>.
+The path to the file is given as a parameter.
+
+=head1 CAVEATS
+
+This program and the libraries providing the features have been
+created as a side effect from some other work and turned out to be a
+lot of fun.  They are far from mature, and the author frequently
+refactors things, so absolutely I<nothing> is guaranteed.
+
+=cut
+

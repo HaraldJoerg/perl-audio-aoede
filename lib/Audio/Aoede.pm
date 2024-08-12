@@ -12,6 +12,7 @@ class Audio::Aoede {
     use Audio::Aoede::LPCM;
     use Audio::Aoede::Player::WAV;
     use Audio::Aoede::Player::SoX;
+    use Audio::Aoede::Voice;
 
     field $rate :param = 44100;
     field $channels = 1;
@@ -54,6 +55,24 @@ class Audio::Aoede {
         $player->write_lpcm($lpcm);
     }
 
+    method play_roll ($path) {
+        require Audio::Aoede::MusicRoll;
+        my $music_roll = Audio::Aoede::MusicRoll->from_file($path);
+        my @voices;
+        for my $section ($music_roll->sections) {
+            my $i_track = 0;
+            Audio::Aoede::Units::set_bpm($section->bpm);
+            for my $track ($section->tracks) {
+                $voices[$i_track] //=
+                    Audio::Aoede::Voice->new(
+                        function => sine_wave()
+                    );
+                $voices[$i_track]->add_notes(@$track);
+                $i_track++;
+            }
+        }
+        $self->write(@voices);
+    }
 }
 
 use Exporter 'import';
