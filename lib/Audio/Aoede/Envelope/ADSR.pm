@@ -66,6 +66,8 @@ class Audio::Aoede::Envelope::ADSR {
     }
 }
 
+1;
+
 __END__
 
 =encoding utf8

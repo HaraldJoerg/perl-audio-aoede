@@ -24,6 +24,8 @@ class Audio::Aoede::MusicRoll::Section {
     }
 }
 
+1;
+
 __END__
 
 =encoding utf8

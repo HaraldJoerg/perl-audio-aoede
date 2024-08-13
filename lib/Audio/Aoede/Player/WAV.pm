@@ -2,6 +2,7 @@ use 5.032;
 use Feature::Compat::Class;
 use feature 'signatures';
 no warnings 'experimental';
+use Audio::Aoede::Player;
 
 class Audio::Aoede::Player::WAV
     :isa(Audio::Aoede::Player)
