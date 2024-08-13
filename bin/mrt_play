@@ -7,7 +7,7 @@ use FindBin;
 use lib "$FindBin::Bin/../lib";
 
 my $path = $ARGV[0] || '../eg/entertainer.mrt';
-use Audio::Aoede qw( sine_wave );
+use Audio::Aoede;
 
 my $aoede = Audio::Aoede->new(player => 'sox');
 $aoede->play_roll($path);
