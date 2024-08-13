@@ -6,7 +6,7 @@ use 5.032;
 use FindBin;
 use lib "$FindBin::Bin/../lib";
 
-my $path = $ARGV[0] || '../eg/entertainer.mrt';
+my $path = $ARGV[0] || "$FindBin::Bin/../eg/entertainer.mrt";
 use Audio::Aoede;
 
 my $aoede = Audio::Aoede->new(player => 'sox');

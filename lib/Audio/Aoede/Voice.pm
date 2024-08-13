@@ -11,9 +11,12 @@ class Audio::Aoede::Voice {
 
     use Audio::Aoede::Note;
     use Audio::Aoede::Units qw( rate tempo );
+    use Audio::Aoede::Envelope;
 
-    field $function :param;
+    field $function          :param;
+    field $envelope_function :param = sub { Audio::Aoede::Envelope->new() };
     field $samples = pdl([]);
+    field $carry;
 
     # Currently defunct, I might want to enable it (again) later.
     #
@@ -35,15 +38,36 @@ class Audio::Aoede::Voice {
 
     method add_notes(@notes) {
         for my $note (@notes) {
-           my $n_samples = $note->duration() * rate() * tempo() / 250_000;
+            my $n_samples = $note->duration() * rate() * tempo() / 250_000;
+            my $new_samples;
+            if (defined $carry) {
+                if ($carry->dim(0) > $n_samples) {
+                    $new_samples = $carry->slice([0,$n_samples-1]);
+                    $carry = $carry->slice([$n_samples,$carry->dim(0)-1]);
+                }
+                else {
+                    $new_samples = sumover pdl(zeroes($n_samples),
+                                               $carry)->transpose;
+                    undef $carry;
+                }
+            }
+            else {
+                $new_samples = zeroes($n_samples);
+            }
             my @pitches = $note->pitches;
-            my $new_samples = @pitches ?
-                sumover pdl(map {
-                    $function->($n_samples,$_)
-                } $note->pitches)->transpose
-            :
-                zeroes($n_samples);
+            my @carry;
+            if (@pitches) {
+                for my $pitch (@pitches) {
+                    my $add_samples = $function->($n_samples,$pitch);
+                    my $add_carry;
+                    my $envelope    = $envelope_function->($pitch);
+                    ($add_samples,$add_carry) = $envelope->apply($add_samples);
+                    $new_samples += $add_samples;
+                    defined $add_carry  and  push @carry,$add_carry;
+                }
+            }
             $samples = $samples->append($new_samples);
+            @carry  and  $carry = sumover pdl(@carry)->transpose;
         }
     }
 
