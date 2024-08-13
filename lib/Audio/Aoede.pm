@@ -114,7 +114,7 @@ sub plucked_envelope () {
         # We need to play around with this to find suitable values.
         # Maybe we could look it up somewhere?
         my $samples_per_period = rate() / $frequency;
-        # FIXNE: The envelopes can be cached
+        # FIXME: The envelopes can be cached
         return Audio::Aoede::Envelope::ADSR->new(
             attack  => int(2 * $samples_per_period),
             decay   => 3000 * sqrt($samples_per_period),
@@ -179,7 +179,7 @@ only works with 16 bits.
 
 It is very unlikely that we'll ever support 24-bit sound: The current
 implementation uses L<PDL>, therefore a sample must be represented by
-a data type known my PDL.  The data types of PDL are native types of
+a data type known by PDL.  The data types of PDL are native types of
 the C programming language, and C has no type with a width of 24 bits.
 
 =item player
