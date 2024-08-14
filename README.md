@@ -31,8 +31,14 @@ use to thest the audio software: It should be easy to write for humans
 (unlike MIDI).  This spec is now
 [here](https://github.com/HaraldJoerg/perl-audio-aoede/blob/main/lib/Audio/Aoede/MusicRoll/Format.pod),
 but unfortunately GitHub's POD rendering clobbers Unicode characters
-in Code sections.
+in Code sections.  Also, HTML rendering of musical note symbols looks
+worse than I expected even when correctly decoded, so perhaps I'll
+drop that.
 
 The `eg` directory has a few examples of music roll files which can be
 played with the program `bin/mrt_play`.  This needs the `sox` program
 to be on your path.
+
+Two of the samples created by mrt_play (~300kB, ~30 seconds each)
+are at https://haraldjoerg.github.io/i/entertainer.ogg and
+https://haraldjoerg.github.io/i/lvb_27_2.ogg .
