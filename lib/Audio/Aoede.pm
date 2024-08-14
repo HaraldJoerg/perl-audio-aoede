@@ -55,6 +55,22 @@ class Audio::Aoede {
         $player->write_lpcm($lpcm);
     }
 
+    method write_samples ($samples) {
+        my $max = max($samples->abs);
+        if ($max > 1) {
+            $samples /= $max;
+        }
+        my $data = short($samples * $amplitude);
+        my $lpcm = Audio::Aoede::LPCM->new(
+            rate     => $rate,
+            bits     => $bits,
+            encoding => 'signed-integer',
+            channels => $channels,
+            data     => $data->get_dataref->$*,
+        );
+        $player->write_lpcm($lpcm);
+    }
+
     method play_roll ($path) {
         require Audio::Aoede::MusicRoll;
         my $music_roll = Audio::Aoede::MusicRoll->from_file($path);
@@ -201,6 +217,12 @@ interface for this right now, sorry.
 Play a music roll presented as a
 L<MRT file|Audio::Aoede::MusicRoll::Format>.
 
+=item C<play_samples>
+
+Play the samples given as parameter.  The samples are normalized to
+the maximum amplitude of the player, but only if the amplitude of
+samples is not in the interval [-1.0,1.0].
+
 =back
 
 =head1 AUTHOR
@@ -213,5 +235,3 @@ Copyright 2024 Harald Jörg
 
 This module is free software; you may redistribute it and/or modify it
 under the same terms as Perl itself.
-
-

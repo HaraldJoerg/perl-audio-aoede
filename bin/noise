@@ -1,0 +1,70 @@
+#!/usr/bin/env perl
+use 5.032;
+
+# At the current state of maturity, this program is not intended to be
+# installed.  I run it directly from the checkout.
+use FindBin;
+use lib "$FindBin::Bin/../lib";
+
+use Getopt::Long;
+use Audio::Aoede;
+use Audio::Aoede::Envelope::ADSR;
+use Audio::Aoede::Noise;
+use Audio::Aoede::Note;
+use Audio::Aoede::Units  qw( rate );
+use Audio::Aoede::Voice;
+
+my $color = 'white';
+my $min_f = '20';
+my $max_f = '22050';
+my $duration = 1;
+
+GetOptions("color=s"    => \$color,
+           "min=i"      => \$min_f,
+           "max=i"      => \$max_f,
+           "duration=i" => \$duration)
+    or die ("Error in command line arguments\n");
+
+my $aoede = Audio::Aoede->new(player => 'sox');
+my $noise = Audio::Aoede::Noise::colored(ucfirst $color,
+                                         'Audio::Aoede::Noise',
+                                         min_f => $min_f,
+                                         max_f => $max_f);
+
+my $rate      = rate();
+my $n_samples = $duration * $rate;
+# Add an envelope to quench audible glitches at the beginning or end
+my $envelope = Audio::Aoede::Envelope::ADSR->new(
+    attack => $rate/20,
+    decay  => 0,
+    sustain => 1,
+    release => $rate/20);
+
+my $carry;
+my ($samples,$carry) = $envelope->apply($noise->samples($n_samples));
+
+$aoede->write_samples($samples->append($carry));
+
+__END__
+
+=head1 NAME
+
+noise - create sound which isn't music
+
+=head1 SYNOPSIS
+
+   $ noise --color=pink
+
+=head1 DESCRIPTION
+
+
+=head1 AUTHOR
+
+Harald Jörg, E<lt>haj@posteo.deE<gt>
+
+=head1 COPYRIGHT AND LICENSE
+
+Copyright 2024 Harald Jörg
+
+This program is free software; you may redistribute it and/or modify
+it under the same terms as Perl itself.
