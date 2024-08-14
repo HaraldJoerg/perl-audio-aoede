@@ -56,28 +56,38 @@ my %key_map = (
 my $note_pattern =
     qr{
           ^
-          (?:                 # durations come in two flavors
-              (?<symbol>$note_symbol_pattern) (?<dot>$note_dot?)
-          |
-              (?<digits>(?&DIGITS))
-          )
-          :                   # Separates pitch from duration
+          (?:
+              (?:             # durations come in two flavors
+                  (?<symbol>$note_symbol_pattern) (?<dot>$note_dot?)
+              |
+                  (?<digits>(?&DIGITS))
+              )
+              :               # Separates pitch from duration
+          )?                  # No duration means: Take the previous one
           (?<notes>(?&NOTE)(?:\+(?&NOTE))*)
       |
           (?:                 # Rests also come in two flavors
               (?<rest_symbol>$rest_symbol_pattern)
           |
-              (?<digits>(?&DIGITS))
-              :
+              (?:
+                  (?<digits>(?&DIGITS))
+                  :
+              )?
               (?<base>R)
           )
+      |
+          (?<bar>[|𝄀])
+      |
+          (?<repeat_start> \|\|: | 𝄆 )
+      |
+          (?<repeat_end> :\|\| | 𝄇 )
           $
           (?(DEFINE)
               (?<DIGITS>[0-9\/.]+) # 1/4 or 0.5
               (?<NOTE>
-                  [A-G]       # The base note name
-                  [b♭#♯]?     # up or down half a note, Unicode or ASCII
-                  (?:[\d]|-1) # We don't support the tenth octave
+                  [A-G]        # The base note name
+                  [b♭#♯]?      # up or down half a note, Unicode or ASCII
+                  (?:[\d]|-1)? # We don't support the tenth octave
               )
           )
           #          |
@@ -125,46 +135,58 @@ sub parse_file ($path) {
         };
         # Now we know we have a notes line
         my @tokens = split /\s+/, $line;
+        my $previous_duration;
+        my $previous_octave;
         my @notes = map {
             my $note_string = $_;
             my $note;
             $note_string =~ /$note_pattern/  and  do {
-                my $duration;
-                if (my $digits = $+{digits}) {
-                    $duration = eval $digits;
-                } else {
-                    if (my $symbol = $+{symbol}) {
-                        $duration = $note_symbols{$symbol};
-                    } elsif (my $rest = $+{rest_symbol}) {
-                        $duration = $rest_symbols{$rest};
-                    } else {
-                        croak "Invalid score: No duration in '$note_string'";
-                    }
-                    if ($+{dot}) {
-                        $duration *= 1.5;
-                    }
+                if (my $bar = $+{bar} || $+{repeat_start} || $+{repeat_start}) {
+                    # Dealing with bars is postponed...
                 }
-                if ($+{notes}) {
-                    my @notes = split /\+/,$+{notes};
-                    my @pitches = map {
-                        m{(?<base>[A-G])
-                          (?<modifier>[b♭#♯]?) #
-                          (?<octave>[\d]|-1)
-                     }ix;
-                        my $number = $diatonic_notes{$+{base}}
-                            + $diatonic_modifiers{$+{modifier}}
-                            + ($+{octave}+1) * 12;
-                        my $pitch = 2 * A440 * (HALFTONE**($number-69));
-                    } @notes;
-                    $note = Audio::Aoede::Note->new(
-                        duration => $duration,
-                        pitches  => \@pitches,
-                    );
-                } else {
-                    # No note => Treat it as a rest
-                    $note = Audio::Aoede::Note->new(
-                        duration => $duration,
-                    );
+                else {
+                    my $duration;
+                    if (my $digits = $+{digits}) {
+                        $duration = eval $digits;
+                    } else {
+                        if (my $symbol = $+{symbol}) {
+                            $duration = $note_symbols{$symbol};
+                        } elsif (my $rest = $+{rest_symbol}) {
+                            $duration = $rest_symbols{$rest};
+                        } elsif ($previous_duration) {
+                            $duration = $previous_duration;
+                        } else {
+                            croak "Invalid score: No duration in '$note_string'";
+                        }
+                        if ($+{dot}) {
+                            $duration *= 1.5;
+                        }
+                    }
+                    $previous_duration = $duration;
+                    if ($+{notes}) {
+                        my @notes = split /\+/,$+{notes};
+                        my @pitches = map {
+                            m{(?<base>[A-G])
+                              (?<modifier>[b♭#♯]?) #
+                              (?<octave>[\d]|-1)?
+                         }ix;
+                            my $octave = $+{octave} // $previous_octave;
+                            my $number = $diatonic_notes{$+{base}}
+                                + $diatonic_modifiers{$+{modifier}}
+                                + ($octave+1) * 12;
+                            $previous_octave = $octave;
+                            my $pitch = 2 * A440 * (HALFTONE**($number-69));
+                        } @notes;
+                        $note = Audio::Aoede::Note->new(
+                            duration => $duration,
+                            pitches  => \@pitches,
+                        );
+                    } else {
+                        # No note => Treat it as a rest
+                        $note = Audio::Aoede::Note->new(
+                            duration => $duration,
+                        );
+                    }
                 }
             };
             $note // ();

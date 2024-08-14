@@ -92,15 +92,19 @@ a space-separated list of tokens.  The tokens are:
 
 =item Notes or Chords
 
-A note/chord consists of a duration, a colon C<:> and a list of note
-names, separated by plus C<+> signs.  The duration can be given as a
-musical note symbol like C<𝅘𝅥𝅯> for a sixteenth note or as a fraction
-C<1/16> or floating point number C<0.0625>.
+A note/chord consists of an optional duration terminated with a colon
+C<:> and a list of note names, separated by plus C<+> signs.  The
+duration can be given as a musical note symbol like C<𝅘𝅥𝅯> for a
+sixteenth note or as a fraction C<1/16> or floating point number
+C<0.0625>.  If the duration and colon are missing, then the duration
+of the previous note on the same line is applied again.
 
 A note name consists of a letter from the set C<ABCDEFG>, an optional
 modifier to raise or lower the note by one half note from the set
-C<#♯b♭>, and a number for the octave in the range from -1 to 9.  C<C4>
-is the "middle C", and C<A4> the pitch standard (usually 440Hz).
+C<#♯b♭>, and an optional number for the octave in the range from -1 to
+9.  C<C4> is the "middle C", and C<A4> the pitch standard (usually
+440Hz).  If the octave number is missing, then the value from the
+previous note on the same line is applied again.
 
 Examples:
 
