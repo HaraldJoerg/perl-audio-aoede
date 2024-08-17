@@ -135,8 +135,9 @@ sound reaching zero.
 
 Creates a new envelope object.  The constructor parameters are
 C<attack>, C<decay>, C<sustain> and C<release>, their purpose is
-explained in the L<description|/#DESCRIPTION>.  The unit of C<attack>,
-C<decay> and C<release>, is seconds, C<sustain> does not carry a unit.
+explained in the L<description|/#DESCRIPTION>.  C<attack>, C<decay>
+and C<release>, are given in sample numbers, C<sustain> does not carry
+a unit.
 
 =item C<< ($mod_samples,$carry) = $env->apply($samples) >>
 
