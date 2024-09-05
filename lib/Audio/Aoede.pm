@@ -91,6 +91,25 @@ class Audio::Aoede {
         $self->write(@voices);
         return;
     }
+
+
+    sub spectrum ($class, $sound, $rate, $limit = 0) {
+        use PDL::FFT;
+        my $frequencies = float($sound);
+        my $n_samples = $sound->dim(0);
+        my $available = 0.5 * $n_samples;
+        $limit *= $n_samples / $rate;
+        if (! $limit  or  $limit > $available) {
+            $limit = $available;
+        }
+        if ($limit <= 0) {
+            return undef;
+        }
+        realfft($frequencies);
+        my $real = $frequencies->slice([0,$limit-1]);
+        my $imag = $frequencies->slice([$available,$available+$limit-1]);
+        return 2 * sqrt($real*$real + $imag*$imag) / $n_samples;
+    }
 }
 
 use Exporter 'import';

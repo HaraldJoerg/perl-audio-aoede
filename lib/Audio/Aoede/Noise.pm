@@ -12,6 +12,7 @@ my $bandwidth = 22050;
 # Preparing our random source.  This will be re-used over and over, so
 # ... our noise is not cryptographically secure.  We don't care.
 use PDL;
+PDL::srandom(16775399);
 use PDL::Constants qw(PI);
 my $D_random  = random($bandwidth) * (2 * PI);
 my $D_cos     = cos($D_random);

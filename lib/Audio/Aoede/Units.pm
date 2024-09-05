@@ -13,6 +13,7 @@ our @EXPORT_OK = qw(
                        CENT
                        HALFTONE
                        PI
+                       notes_per_second
                        rate
                        tempo
                );
@@ -31,7 +32,8 @@ my $rate = 44100;
 sub rate () { return $rate };
 
 # The tempo is a MIDI term giving the number of microseconds per
-# quarter note.  This can be changed.
+# quarter note.  This can be changed.  We actually want to avoid this
+# unit and use beats per minute whereever applicable.
 my $tempo = 500_000;
 
 sub tempo () {
@@ -40,6 +42,10 @@ sub tempo () {
 
 sub set_tempo ($new_tempo) {
     $tempo = $new_tempo;
+}
+
+sub notes_per_second {
+    return $tempo / 250_000;
 }
 
 sub set_bpm ($bpm) {
