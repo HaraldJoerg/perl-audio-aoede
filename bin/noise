@@ -40,7 +40,6 @@ my $envelope = Audio::Aoede::Envelope::ADSR->new(
     sustain => 1,
     release => $rate/20);
 
-my $carry;
 my ($samples,$carry) = $envelope->apply($noise->samples($n_samples));
 
 $aoede->write_samples($samples->append($carry));
