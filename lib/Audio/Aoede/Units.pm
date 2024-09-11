@@ -13,6 +13,8 @@ our @EXPORT_OK = qw(
                        CENT
                        HALFTONE
                        PI
+                       hz2mel
+                       mel2hz
                        notes_per_second
                        rate
                        tempo
@@ -42,14 +44,39 @@ sub tempo () {
 
 sub set_tempo ($new_tempo) {
     $tempo = $new_tempo;
+    return;
 }
 
 sub notes_per_second {
     return $tempo / 250_000;
 }
 
+sub bpm () {
+    return 6E7/$tempo;
+}
+
 sub set_bpm ($bpm) {
     $tempo = 6E7/$bpm;
+    return;
+}
+
+# Conversion between frequency and mel scale
+# Source: Douglas O'Shaughnessy (1987).
+# Speech communication: human and machine.
+# Addison-Wesley. p. 150. ISBN 978-0-201-16520-3
+# https://books.google.com/books?id=mHFQAAAAMAAJ&q=2595
+# The formula is adapted to use the natural logarithm,
+# in the book the logarithm is base 10
+#
+# This is not used in the code, but I would like to have the
+# definition and its source ready.
+
+sub hz2mel ($hz) {
+    return 1127 * log(1 + $hz/700);
+}
+
+sub mel2hz ($mel) {
+    return 700 * (exp($mel/1127) - 1);
 }
 
 __END__

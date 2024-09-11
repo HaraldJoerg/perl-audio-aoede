@@ -13,3 +13,4 @@ class Audio::Aoede::Snapshot 0.01 {
     method time { $time }
     method spectra { $spectra }
 }
+1;

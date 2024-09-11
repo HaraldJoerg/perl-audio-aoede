@@ -52,6 +52,21 @@ class Audio::Aoede::Player::SoX
         print $audio_handle $lpcm->data;
     }
 
+    method write_piddle ($piddle,$out = '--default') {
+        open (my $audio_handle,'|-',
+              $sox,
+              '--no-show-progress',
+              _build_argument_list(%input_properties),
+              '-', # We're going to feed STDIN
+              _build_argument_list(%output_properties),
+              $out
+          );
+        $audio_handle->autoflush(1);
+        binmode $audio_handle;
+        $self->_set_handle($audio_handle);
+        print $audio_handle($piddle->get_dataref->$*);
+        close $audio_handle;
+    }
 
     sub _build_argument_list (%hash) {
         return map { ("--$_", $hash{$_} // ()) } keys %hash;
@@ -112,6 +127,12 @@ Start SoX and open the pipe.
 =head2 C<$s-E<gt>stop>
 
 Close the pipe, which will stop SoX.
+
+=head2 C<< $s->write_piddle($piddle[,$output]) >>
+
+Write C<$piddle> conforming to the player's specification to the
+specified output path, or to the default sound device if no path is
+provided.
 
 =head2 Internal methods
 

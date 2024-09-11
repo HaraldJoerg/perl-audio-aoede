@@ -26,9 +26,9 @@ class Audio::Aoede {
     ADJUST {
         if ($player eq 'sox') {
             $player = Audio::Aoede::Player::SoX->new(
-                rate => $rate,
-                bits => $bits,
-                channels => $channels
+                rate     => $rate,
+                bits     => $bits,
+                channels => $channels,
             );
         }
     }
@@ -37,7 +37,24 @@ class Audio::Aoede {
         return $player;
     }
 
+    method write_piddle ($piddle,$out = undef) {
+        $out //= '--default';
+        $player->write_piddle(short($piddle * $amplitude),$out);
+    }
+
+    # FIXME: This only works for a single channel
     method write (@voices) {
+        my @samples = map { $_->samples } @voices;
+        my $sum = sumover(pdl(@samples)->transpose);
+        my $max = max($sum);
+        if ($max > 1) {
+            $sum /= $max;
+        }
+        my $data = short($sum * $amplitude);
+        $player->write_piddle($data);
+    }
+
+    method write_old (@voices) {
         my @samples = map { $_->samples } @voices;
         my $sum = sumover(pdl(@samples)->transpose);
         my $max = max($sum);
@@ -55,7 +72,17 @@ class Audio::Aoede {
         $player->write_lpcm($lpcm);
     }
 
+    # FIXME: This only works for a single channel
     method write_samples ($samples) {
+        my $max = max($samples->abs);
+        if ($max > 1) {
+            $samples /= $max;
+        }
+        my $data = short($samples * $amplitude);
+        $player->write_piddle($data);
+    }
+
+    method write_samples_old ($samples) {
         my $max = max($samples->abs);
         if ($max > 1) {
             $samples /= $max;
@@ -70,7 +97,6 @@ class Audio::Aoede {
         );
         $player->write_lpcm($lpcm);
     }
-
     method play_roll ($path) {
         require Audio::Aoede::MusicRoll;
         my $music_roll = Audio::Aoede::MusicRoll->from_file($path);
@@ -93,7 +119,7 @@ class Audio::Aoede {
     }
 
 
-    sub spectrum ($class, $sound, $rate, $limit = 0) {
+    sub spectrum ($class, $sound, $rate = 44100, $limit = 0) {
         use PDL::FFT;
         my $frequencies = float($sound);
         my $n_samples = $sound->dim(0);
