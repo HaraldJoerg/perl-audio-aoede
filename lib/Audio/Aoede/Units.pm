@@ -13,6 +13,8 @@ our @EXPORT_OK = qw(
                        CENT
                        HALFTONE
                        PI
+                       cB
+                       dB
                        hz2mel
                        mel2hz
                        notes_per_second
@@ -26,6 +28,8 @@ use constant PI       => atan2(0,-1); # Math::Trig collides with PDL
 use constant A440     => 440;
 use constant HALFTONE => 2**(1/12);
 use constant CENT     => 2**(1/1200);
+use constant dB       => 2**(1/10);
+use constant cB       => 2**(1/100);
 
 # The rate (number of samples per second) should only be set once, or
 # left at its default value.
