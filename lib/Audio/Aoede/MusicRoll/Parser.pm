@@ -20,9 +20,11 @@ my %diatonic_notes = (
     C => 0,   D => 2,   E => 4,   F => 5,   G => 7,   A => 9,   B => 11,
 );
 my %diatonic_modifiers = (
-    ''  =>  0,
-    'b' => -1,   '♭' => -1,
-    '#' =>  1,   '♯' =>  1,
+    ''   =>  0,
+    'b'  => -1,   '♭' => -1,
+    'bb' => -2,   '𝄫' => -2,
+    '#'  =>  1,   '♯' =>  1,
+    '##' =>  2,   '𝄪' =>  2,
 );
 my %note_symbols = (
     '𝅝' => 1,           # U+1D15D MUSICAL SYMBOL WHOLE NOTE
@@ -86,7 +88,11 @@ my $note_pattern =
               (?<DIGITS>[0-9\/.]+) # 1/4 or 0.5
               (?<NOTE>
                   [A-G]        # The base note name
-                  [b♭#♯]?      # up or down half a note, Unicode or ASCII
+                  (?:
+                      [b♭𝄫#♯𝄪] # up or down Unicode or ASCII
+                  |
+                      bb | ##
+                  )?
                   (?:[\d]|-1)? # We don't support the tenth octave
               )
           )
