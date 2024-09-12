@@ -91,7 +91,7 @@ my $note_pattern =
                   (?:
                       [b♭𝄫#♯𝄪] # up or down Unicode or ASCII
                   |
-                      bb | ##
+                      bb | \#\#
                   )?
                   (?:[\d]|-1)? # We don't support the tenth octave
               )
