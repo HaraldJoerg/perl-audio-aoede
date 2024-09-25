@@ -11,7 +11,7 @@ class Audio::Aoede::LPCM 0.01 {
     field $channels :param = 1;
     field $data     :param = undef;
 
-    use Carp ();
+    use Carp;
 
     sub new_from_wav ($class,$path) {
         open (my $handle,'<',$path); # autodie takes care of errors
@@ -64,7 +64,18 @@ class Audio::Aoede::LPCM 0.01 {
     }
 
 
-    method write_wav ($handle) {
+    method write_wav ($to = undef) {
+        my $handle;
+        if ($to) {
+            open ($handle, '>', $to)
+                or croak qq(Can not write to '$to': '$!');
+        }
+        else {
+            $handle = File::Temp->new(SUFFIX => '.wav',
+                                      UNLINK => 0);
+            $to = "$handle";
+        }
+        binmode $handle;
         print $handle 'RIFF';
         my $header = 'WAVE';
         $header .= 'fmt ';
@@ -83,6 +94,7 @@ class Audio::Aoede::LPCM 0.01 {
         print $handle pack('l',length($data));
         print $handle $data;
         close $handle;
+        return $to;
     }
 
 
@@ -142,9 +154,9 @@ The raw LPCM data need a set of metadata so that they can be
 processed.  Objects of this class hold these metadata together with
 the LPCM data.
 
-=head2 METHODS
+=head1 METHODS
 
-=head3 Class Method C<< Audio::Aoede::LPCM->new >>
+=head2 Class Method C<< Audio::Aoede::LPCM->new >>
 
 This constructs the object from the following parameters which can be
 given as C<key=>$value> pairs.  The valid keys are:
@@ -173,28 +185,28 @@ The number of channels.  Default: C<channels =E<gt> 1>.
 
 =back
 
-=head3 Method C<rate>
+=head2 Method C<rate>
 
 Returns the current bit rate (samples per second).
 
-=head3 Method C<channels>
+=head2 Method C<channels>
 
 Returns the current number of channels.
 
-=head3 Method C<data>
+=head2 Method C<data>
 
 Returns the raw sample data.
 
-=head3 Method C<set_data($new_data)>
+=head2 Method C<set_data($new_data)>
 
 Sets C<$new_data> to be the new data.  The new data must have the same
 bit rate, bits per sample and number of channels as the original one.
 
-=head3 Method C<n_samples>
+=head2 Method C<n_samples>
 
 Returns the number of samples in the raw data.
 
-=head3 Method C<spec>
+=head2 Method C<spec>
 
 Returns a hash providing the metadata of the current sample data.
 The hash contains the following keys:
@@ -214,6 +226,26 @@ The hash contains the following keys:
 This key always has the value 'raw' for Audio::Aoede::LPCM objects.
 
 =back
+
+=head2 Class Method new_from_wav
+
+   $lpcm = Audio::Aoede::LPCM->new_from_wav($path)
+
+Alternative constructor: Create and return an Audio::Aoede::LPCM
+object from a WAV file.
+
+=head2 Method read_wav
+
+This method is used internally by L</Class Method new_from_wav>.
+
+=head2 Method write_wav
+
+   $path = $lpcm->write_wav($to)
+
+Write the object as a WAV file to C<$to>.  If C<$to> is missing,
+undef, or false, create a temporary file.
+
+Returns the path name of the file written.
 
 =head1 REFERENCES
 

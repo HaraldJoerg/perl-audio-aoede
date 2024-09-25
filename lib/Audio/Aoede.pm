@@ -10,36 +10,45 @@ class Audio::Aoede {
     use PDL;
 
     use Audio::Aoede::LPCM;
-    use Audio::Aoede::Player::WAV;
-    use Audio::Aoede::Player::SoX;
     use Audio::Aoede::Voice;
 
-    field $rate :param = 44100;
+    field $rate   :param = 44100;
     field $channels = 1;
     field $bits = 16;
     field $samples;
     field @voices;
-    field $player :param = Audio::Aoede::Player::WAV->new;
+    field $out    :param = undef;
 
     my $amplitude = 2**14;
 
     ADJUST {
-        if ($player eq 'sox') {
-            $player = Audio::Aoede::Player::SoX->new(
-                rate     => $rate,
-                bits     => $bits,
-                channels => $channels,
-            );
-        }
+        # if ($player eq 'sox') {
+        #     $player = Audio::Aoede::Player::SoX->new(
+        #         rate     => $rate,
+        #         bits     => $bits,
+        #         channels => $channels,
+        #         out      => $out // '--default',
+        #     );
+        # }
     }
 
-    method player {
-        return $player;
+    method rate {
+        return $rate;
     }
 
-    method write_piddle ($piddle,$out = undef) {
-        $out //= '--default';
-        $player->write_piddle(short($piddle * $amplitude),$out);
+    method play ($piddle) {
+        require Audio::Aoede::Player::SoX;
+        my $max = max(abs $piddle);
+        my $safe =  $max <= 1
+            ? $piddle
+            : $piddle / $max;
+        my $player = Audio::Aoede::Player::SoX->new(
+            rate     => $rate,
+            bits     => $bits,
+            channels => $channels,
+            out      => $out // '--default',
+        );
+        $player->write_piddle(short($safe * $amplitude,$out));
     }
 
     # FIXME: This only works for a single channel
@@ -51,26 +60,16 @@ class Audio::Aoede {
             $sum /= $max;
         }
         my $data = short($sum * $amplitude);
+        require Audio::Aoede::Player::SoX;
+        my $player = Audio::Aoede::Player::SoX->new(
+            rate     => $rate,
+            bits     => $bits,
+            channels => $channels,
+            out      => $out // '--default',
+        );
         $player->write_piddle($data);
     }
 
-    method write_old (@voices) {
-        my @samples = map { $_->samples } @voices;
-        my $sum = sumover(pdl(@samples)->transpose);
-        my $max = max($sum);
-        if ($max > 1) {
-            $sum /= $max;
-        }
-        my $data = short($sum * $amplitude);
-        my $lpcm = Audio::Aoede::LPCM->new(
-            rate     => $rate,
-            bits     => $bits,
-            encoding => 'signed-integer',
-            channels => $channels,
-            data     => $data->get_dataref->$*,
-        );
-        $player->write_lpcm($lpcm);
-    }
 
     # FIXME: This only works for a single channel
     method write_samples ($samples) {
@@ -79,24 +78,15 @@ class Audio::Aoede {
             $samples /= $max;
         }
         my $data = short($samples * $amplitude);
+        my $player = Audio::Aoede::Player::SoX->new(
+            rate     => $rate,
+            bits     => $bits,
+            channels => $channels,
+            out      => $out // '--default',
+        );
         $player->write_piddle($data);
     }
 
-    method write_samples_old ($samples) {
-        my $max = max($samples->abs);
-        if ($max > 1) {
-            $samples /= $max;
-        }
-        my $data = short($samples * $amplitude);
-        my $lpcm = Audio::Aoede::LPCM->new(
-            rate     => $rate,
-            bits     => $bits,
-            encoding => 'signed-integer',
-            channels => $channels,
-            data     => $data->get_dataref->$*,
-        );
-        $player->write_lpcm($lpcm);
-    }
     method play_roll ($path) {
         require Audio::Aoede::MusicRoll;
         my $music_roll = Audio::Aoede::MusicRoll->from_file($path);
@@ -107,7 +97,7 @@ class Audio::Aoede {
             for my $track ($section->tracks) {
                 $voices[$i_track] //=
                     Audio::Aoede::Voice->new(
-                        function          => sawtooth_wave(),
+                        function          => square_wave(),
                         envelope_function => plucked_envelope(),
                     );
                 $voices[$i_track]->add_notes(@$track);
@@ -119,7 +109,7 @@ class Audio::Aoede {
     }
 
 
-    sub spectrum ($class, $sound, $rate = 44100, $limit = 0) {
+    method spectrum ($sound, $limit = 0) {
         use PDL::FFT;
         my $frequencies = float($sound);
         my $n_samples = $sound->dim(0);
@@ -136,17 +126,28 @@ class Audio::Aoede {
         my $imag = $frequencies->slice([$available,$available+$limit-1]);
         return 2 * sqrt($real*$real + $imag*$imag) / $n_samples;
     }
+
+    method server {
+        require Audio::Aoede::Server;
+        return Audio::Aoede::Server->new(
+            rate => $rate
+        )
+    }
 }
 
 use Exporter 'import';
-our @EXPORT_OK = qw( sine_wave );
+our @EXPORT_OK = qw( sine_wave
+                     sawtooth_wave
+                     square_wave
+                     noise
+               );
 
 use PDL;
-use Audio::Aoede::Units qw( PI rate );
+use Audio::Aoede::Units qw( PI );
 
 sub sine_wave () {
     return sub ($n_samples, $frequency, $since = 0) {
-        my $samples_per_period = rate() / $frequency;
+        my $samples_per_period = Audio::Aoede::Units::rate() / $frequency;
         my $norm = 2 * PI() / $samples_per_period;
         $since -= int ($since/$samples_per_period);
         my $phase = (sequence($n_samples) + $since) * $norm;
@@ -157,8 +158,8 @@ sub sine_wave () {
 
 sub sawtooth_wave () {
     return sub ($n_samples, $frequency, $since = 0) {
-        my $total_periods      = $since * $frequency / rate();
-        my $samples_per_period = rate() / $frequency;
+        my $total_periods      = $since * $frequency / Audio::Aoede::Units::rate();
+        my $samples_per_period = Audio::Aoede::Units::rate() / $frequency;
         my $partial_period     = $total_periods - int($total_periods);
         my $phase              = sequence($n_samples) / $samples_per_period;
         $phase                 += $partial_period;
@@ -169,12 +170,44 @@ sub sawtooth_wave () {
     }
 }
 
+
+sub square_wave () {
+    return sub ($n_samples, $frequency, $since = 0) {
+        my $rate = Audio::Aoede::Units::rate();
+        my $total_periods      = $since * $frequency / $rate;
+        my $samples_per_period = $rate / $frequency;
+        my $low_part           = 0.5;
+        my $partial_period     = $total_periods - int($total_periods);
+        my $phase              = sequence($n_samples) / $samples_per_period;
+        $phase                 += $partial_period;
+        $phase                 -= long $phase;
+        my ($lo,$hi)           = $phase->where_both($phase < $low_part);
+        $lo .= -1;
+        $hi .= 1;
+        return $phase;
+    }
+}
+
+
+use Audio::Aoede::Noise;
+sub noise ($color,%params) {
+    $color = ucfirst $color;
+    my $noise = Audio::Aoede::Noise::colored(
+        $color,
+        'Audio::Aoede::Noise',
+        %params,
+    );
+    return sub ($n_samples, $since = 0) {
+        return $noise->samples($n_samples,$since);
+    }
+}
+
 sub plucked_envelope () {
     require Audio::Aoede::Envelope::ADSR;
     return sub ($frequency) {
         # We need to play around with this to find suitable values.
         # Maybe we could look it up somewhere?
-        my $samples_per_period = rate() / $frequency;
+        my $samples_per_period = Audio::Aoede::Units::rate() / $frequency;
         # FIXME: The envelopes can be cached
         return Audio::Aoede::Envelope::ADSR->new(
             attack  => int(2 * $samples_per_period),

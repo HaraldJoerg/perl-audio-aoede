@@ -8,12 +8,19 @@ class Audio::Aoede::Player::SoX
     :isa(Audio::Aoede::Player)
 {
     use PDL;
+    use autodie;
 
-    field $sox      :param = 'sox';
+    my    $sox      = 'sox';
+    my    %extra_output_properties =  ($^O =~ /MSWin32/)
+        ? (type => 'waveaudio')
+        : ();
+
+
     field $rate     :param;
     field $encoding = 'signed-integer';
     field $bits     :param;
     field $channels :param;
+    field $out      :param = '--default';
     field %input_properties;
     field $input_buffer = 8192;
     field %output_properties;
@@ -29,42 +36,51 @@ class Audio::Aoede::Player::SoX
         );
         %output_properties = (
             channels => $channels,
-            ($^O =~ /MSWin32/ ? (type => 'waveaudio') : ()),
+            %extra_output_properties,
         );
     }
 
-    method write_lpcm ($lpcm) {
+    sub set_sox_path ($class,$path) {
+        $sox = $path;
+    }
+
+    # LPCM as input contains the metadata we need, so we don't need to
+    # create a player object in advance.
+    # In this method, $handle is *not* the object's field, but I fail
+    # to come up with a better name.
+    sub play_lpcm ($class, $lpcm, $to = undef) {
+        $to //= '--default'; # we don't have that in signatures yet
         my %spec = $lpcm->spec;
-        open (my $audio_handle,'|-',
+        open (my $handle,'|-',
               $sox,
               '--no-show-progress',
               _build_argument_list(%spec),
               '-', # We're going to feed STDIN
-              _build_argument_list(%output_properties,
+              _build_argument_list(%extra_output_properties,
                                    channels => $spec{channels}),
-#	      'sine.wav' ... we could write arbitary formats with SoX
-#              'entertainer.ogg'
-              '--default'
+              $to,
           );
-        $audio_handle->autoflush(1);
-        binmode $audio_handle;
-        $self->_set_handle($audio_handle);
-        print $audio_handle $lpcm->data;
+        $handle->autoflush(1);
+        binmode $handle;
+        print $handle $lpcm->data;
+        close $handle;
+        return $to;
     }
 
-    method write_piddle ($piddle,$out = '--default') {
+    method write_piddle ($piddle,$to = undef) {
+        $to //= $out;
         open (my $audio_handle,'|-',
               $sox,
               '--no-show-progress',
               _build_argument_list(%input_properties),
               '-', # We're going to feed STDIN
               _build_argument_list(%output_properties),
-              $out
+              $to
           );
         $audio_handle->autoflush(1);
         binmode $audio_handle;
         $self->_set_handle($audio_handle);
-        print $audio_handle($piddle->get_dataref->$*);
+        print $audio_handle ($piddle->get_dataref->$*);
         close $audio_handle;
     }
 
@@ -93,7 +109,7 @@ platform and works with various sound environments.
 
 =head2 C<new>
 
-The constructor takes key/value pairs as arguments. 
+The constructor takes key/value pairs as arguments.
 
 =over
 
@@ -119,6 +135,15 @@ depth.
 The number of channels.
 
 =back
+
+=head2 class method play_lpcm
+
+   $path = Audio::Aoede::Player::Sox->play_lpcm($lpcm,$to)
+
+Send the contents of the L<Audio::Aoede::LPCM> object C<$lpcm> to
+C<$to>.  The file format of C<$to> is deduced by sox from the
+extension of file name.  If C<$to> is not provided, uses the default
+output channel of so which is the default sound card.
 
 =head2 C<$s-E<gt>start>
 

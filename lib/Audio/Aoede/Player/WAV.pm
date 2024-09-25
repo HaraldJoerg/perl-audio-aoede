@@ -2,7 +2,6 @@ use 5.032;
 use Feature::Compat::Class;
 use feature 'signatures';
 no warnings 'experimental';
-use Audio::Aoede::Player;
 
 class Audio::Aoede::Player::WAV
     :isa(Audio::Aoede::Player)
@@ -29,9 +28,19 @@ class Audio::Aoede::Player::WAV
         return $path;
     }
 
-    method write_lpcm ($lpcm) {
-        $lpcm->write_wav($self->handle);
+    sub play_lpcm ($class, $lpcm, $to = undef) {
+        $lpcm->write_wav($to);
     }
 }
 
 1;
+
+=head1 METHODS
+
+=head2 class method play_lpcm
+
+   $path = Audio::Aoede::Player::WAV->play_lpcm($lpcm,$to)
+
+Send the contents of the L<Audio::Aoede::LPCM> object C<$lpcm> in WAV
+file format to C<$to>.  If C<$to> is not provided, create a temporary
+file.  Returns the path name of the file written.
