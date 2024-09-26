@@ -6,27 +6,25 @@ use Feature::Compat::Class;
 use feature 'signatures';
 no warnings 'experimental';
 
-# Configuration, somewhat arbitrary
-my $bandwidth = 22050;
-
 # Preparing our random source.  This will be re-used over and over, so
 # ... our noise is not cryptographically secure.  We don't care.
 use PDL;
 PDL::srandom(16775399);
 use PDL::Constants qw(PI);
-my $D_random  = random($bandwidth) * (2 * PI);
-my $D_cos     = cos($D_random);
-my $D_sin     = sin($D_random);
 
 class Audio::Aoede::Noise {
     use PDL;
     use PDL::FFT;
     use List::Util (); # imports collide with PDL
 
-    field $min_f :param = 20;
-    field $max_f :param = $bandwidth;
+    field $bandwidth :reader :param = 22050;
+    field $min_f     :param = 20;
+    field $max_f     :param = $bandwidth;
     field $Data;
-    field $current = 0;
+    field $current   = 0;
+    field $D_random  = random($bandwidth) * (2 * PI);
+    field $D_cos     :reader = cos($D_random);
+    field $D_sin     :reader = sin($D_random);
 
     ADJUST {
         $self->init();
@@ -123,10 +121,10 @@ class Audio::Aoede::Noise {
 class Audio::Aoede::Noise::White :isa(Audio::Aoede::Noise) {
     use PDL;
     method _real ($min,$max) {
-        return $D_cos->slice([$min-1,$max-1]);
+        return $self->D_cos->slice([$min-1,$max-1]);
     }
     method _imag ($min,$max) {
-        return $D_sin->slice([$min-1,$max-1]);
+        return $self->D_sin->slice([$min-1,$max-1]);
     }
 }
 
@@ -135,11 +133,11 @@ class Audio::Aoede::Noise::Brown :isa(Audio::Aoede::Noise) {
     use PDL;
     method _real ($min,$max) {
         my $factor = slice(sequence($max)+1,[$min-1,$max-1]);
-        return $D_cos->slice([$min-1,$max-1]) / $factor;
+        return $self->D_cos->slice([$min-1,$max-1]) / $factor;
     }
     method _imag ($min,$max) {
         my $factor = slice(sequence($max)+1,[$min-1,$max-1]);
-        return $D_sin->slice([$min-1,$max-1]) / $factor;
+        return $self->D_sin->slice([$min-1,$max-1]) / $factor;
     }
 }
 
@@ -147,11 +145,11 @@ class Audio::Aoede::Noise::Pink :isa(Audio::Aoede::Noise) {
     use PDL;
     method _real ($min,$max) {
         my $factor = slice(sequence($max)+1,[$min-1,$max-1]);
-        return $D_cos->slice([$min-1,$max-1]) / sqrt($factor);
+        return $self->D_cos->slice([$min-1,$max-1]) / sqrt($factor);
     }
     method _imag ($min,$max) {
         my $factor = slice(sequence($max)+1,[$min-1,$max-1]);
-        return $D_sin->slice([$min-1,$max-1]) / sqrt($factor);
+        return $self->D_sin->slice([$min-1,$max-1]) / sqrt($factor);
     }
 }
 
@@ -159,11 +157,11 @@ class Audio::Aoede::Noise::Blue :isa(Audio::Aoede::Noise) {
     use PDL;
     method _real ($min,$max) {
         my $factor = slice(sequence($max)+1,[$min-1,$max-1]);
-        return $D_cos->slice([$min-1,$max-1]) * sqrt($factor);
+        return $self->D_cos->slice([$min-1,$max-1]) * sqrt($factor);
     }
     method _imag ($min,$max) {
         my $factor = slice(sequence($max)+1,[$min-1,$max-1]);
-        return $D_sin->slice([$min-1,$max-1]) * sqrt($factor);
+        return $self->D_sin->slice([$min-1,$max-1]) * sqrt($factor);
     }
 }
 
@@ -171,11 +169,11 @@ class Audio::Aoede::Noise::Violet :isa(Audio::Aoede::Noise) {
     use PDL;
     method _real ($min,$max) {
         my $factor = slice(sequence($max)+1,[$min-1,$max-1]);
-        return $D_cos->slice([$min-1,$max-1]) * $factor;
+        return $self->D_cos->slice([$min-1,$max-1]) * $factor;
     }
     method _imag ($min,$max) {
         my $factor = slice(sequence($max)+1,[$min-1,$max-1]);
-        return $D_sin->slice([$min-1,$max-1]) * $factor;
+        return $self->D_sin->slice([$min-1,$max-1]) * $factor;
     }
 }
 
@@ -185,20 +183,20 @@ class Audio::Aoede::Noise::Gaussian :isa(Audio::Aoede::Noise) {
     field $width     :param;
     field $slice;
     ADJUST {
-	$slice = [19,$bandwidth-1];
+	$slice = [19,$self->bandwidth-1];
     }
 
     method factor {
-	my $Df = sequence($bandwidth)->slice([19,$bandwidth-1]);
+	my $Df = sequence($self->bandwidth)->slice([19,$self->bandwidth-1]);
 	my $De = log($Df/$frequency);
 	$De *= $De;
 	return exp($De/$width);
     }
     method _real {
-	return $D_sin->slice([19,$bandwidth-1]) / $self->factor();
+	return $self->D_sin->slice([19,$self->bandwidth-1]) / $self->factor();
     }
     method _imag {
-	return $D_cos->slice([19,$bandwidth-1]) / $self->factor();
+	return $self->D_cos->slice([19,$self->bandwidth-1]) / $self->factor();
     }
 }
 

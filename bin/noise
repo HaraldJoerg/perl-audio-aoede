@@ -28,10 +28,11 @@ GetOptions("color=s"    => \$color,
 my $aoede = Audio::Aoede->new;
 my $noise = Audio::Aoede::Noise::colored(ucfirst $color,
                                          'Audio::Aoede::Noise',
+                                         bandwidth => $aoede->rate/2,
                                          min_f => $min_f,
                                          max_f => $max_f);
 
-my $rate      = rate();
+my $rate      = $aoede->rate;
 my $n_samples = $duration * $rate;
 # Add an envelope to quench audible glitches at the beginning or end
 my $envelope = Audio::Aoede::Envelope::ADSR->new(

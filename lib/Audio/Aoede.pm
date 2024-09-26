@@ -11,6 +11,7 @@ class Audio::Aoede {
 
     use Audio::Aoede::LPCM;
     use Audio::Aoede::Voice;
+    use Audio::Aoede::Units qw( PI );
 
     field $rate   :param = 44100;
     field $channels = 1;
@@ -134,6 +135,62 @@ class Audio::Aoede {
             rate => $rate
         )
     }
+
+    method sine_wave () {
+        return sub ($n_samples, $frequency, $since = 0) {
+            my $samples_per_period = $rate / $frequency;
+            my $norm = 2 * PI() / $samples_per_period;
+            $since -= int ($since/$samples_per_period);
+            my $phase = (sequence($n_samples) + $since) * $norm;
+            my $samples = sin($phase);
+            return $samples;
+        }
+    }
+
+    method sawtooth_wave () {
+        return sub ($n_samples, $frequency, $since = 0) {
+            my $total_periods      = $since * $frequency / $rate;
+            my $samples_per_period = $rate / $frequency;
+            my $partial_period     = $total_periods - int($total_periods);
+            my $phase              = sequence($n_samples) / $samples_per_period;
+            $phase                 += $partial_period;
+            $phase                 -= long $phase;
+            $phase                 *= 2;
+            $phase                 -= 1;
+            return $phase;
+        }
+    }
+
+    method square_wave () {
+        return sub ($n_samples, $frequency, $since = 0) {
+            my $total_periods      = $since * $frequency / $rate;
+            my $samples_per_period = $rate / $frequency;
+            my $low_part           = 0.5;
+            my $partial_period     = $total_periods - int($total_periods);
+            my $phase              = sequence($n_samples) / $samples_per_period;
+            $phase                 += $partial_period;
+            $phase                 -= long $phase;
+            my ($lo,$hi)           = $phase->where_both($phase < $low_part);
+            $lo .= -1;
+            $hi .= 1;
+            return $phase;
+        }
+    }
+
+    method noise ($color,%params) {
+        require Audio::Aoede::Noise;
+        $color = ucfirst $color;
+        my $noise = Audio::Aoede::Noise::colored(
+            $color,
+            'Audio::Aoede::Noise',
+            bandwidth => $rate/2,
+            %params,
+        );
+        return sub ($n_samples, $since = 0) {
+            return $noise->samples($n_samples,$since);
+        }
+    }
+
 }
 
 use Exporter 'import';
@@ -144,9 +201,8 @@ our @EXPORT_OK = qw( sine_wave
                );
 
 use PDL;
-use Audio::Aoede::Units qw( PI );
 
-sub sine_wave () {
+sub _sine_wave () {
     return sub ($n_samples, $frequency, $since = 0) {
         my $samples_per_period = Audio::Aoede::Units::rate() / $frequency;
         my $norm = 2 * PI() / $samples_per_period;
@@ -157,7 +213,7 @@ sub sine_wave () {
     }
 }
 
-sub sawtooth_wave () {
+sub _sawtooth_wave () {
     return sub ($n_samples, $frequency, $since = 0) {
         my $total_periods      = $since * $frequency / Audio::Aoede::Units::rate();
         my $samples_per_period = Audio::Aoede::Units::rate() / $frequency;
@@ -172,7 +228,7 @@ sub sawtooth_wave () {
 }
 
 
-sub square_wave () {
+sub _square_wave () {
     return sub ($n_samples, $frequency, $since = 0) {
         my $rate = Audio::Aoede::Units::rate();
         my $total_periods      = $since * $frequency / $rate;
@@ -190,8 +246,8 @@ sub square_wave () {
 }
 
 
-use Audio::Aoede::Noise;
-sub noise ($color,%params) {
+
+sub _noise ($color,%params) {
     $color = ucfirst $color;
     my $noise = Audio::Aoede::Noise::colored(
         $color,
