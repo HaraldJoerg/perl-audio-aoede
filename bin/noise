@@ -25,7 +25,7 @@ GetOptions("color=s"    => \$color,
            "duration=i" => \$duration)
     or die ("Error in command line arguments\n");
 
-my $aoede = Audio::Aoede->new(player => 'sox');
+my $aoede = Audio::Aoede->new;
 my $noise = Audio::Aoede::Noise::colored(ucfirst $color,
                                          'Audio::Aoede::Noise',
                                          min_f => $min_f,
@@ -42,7 +42,7 @@ my $envelope = Audio::Aoede::Envelope::ADSR->new(
 
 my ($samples,$carry) = $envelope->apply($noise->samples($n_samples));
 
-$aoede->write_samples($samples->append($carry));
+$aoede->play_samples($samples->append($carry));
 
 __END__
 

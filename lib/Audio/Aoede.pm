@@ -48,7 +48,7 @@ class Audio::Aoede {
             channels => $channels,
             out      => $out // '--default',
         );
-        $player->write_piddle(short($safe * $amplitude,$out));
+        $player->play_piddle(short($safe * $amplitude,$out));
     }
 
     # FIXME: This only works for a single channel
@@ -67,24 +67,25 @@ class Audio::Aoede {
             channels => $channels,
             out      => $out // '--default',
         );
-        $player->write_piddle($data);
+        $player->play_piddle($data);
     }
 
 
     # FIXME: This only works for a single channel
-    method write_samples ($samples) {
+    method play_samples ($samples) {
         my $max = max($samples->abs);
         if ($max > 1) {
             $samples /= $max;
         }
         my $data = short($samples * $amplitude);
+        require Audio::Aoede::Player::SoX;
         my $player = Audio::Aoede::Player::SoX->new(
             rate     => $rate,
             bits     => $bits,
             channels => $channels,
             out      => $out // '--default',
         );
-        $player->write_piddle($data);
+        $player->play_piddle($data);
     }
 
     method play_roll ($path) {

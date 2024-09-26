@@ -67,9 +67,9 @@ class Audio::Aoede::Player::SoX
         return $to;
     }
 
-    method write_piddle ($piddle,$to = undef) {
+    method play_piddle ($piddle,$to = undef) {
         $to //= $out;
-        open (my $audio_handle,'|-',
+        open (my $handle,'|-',
               $sox,
               '--no-show-progress',
               _build_argument_list(%input_properties),
@@ -77,11 +77,11 @@ class Audio::Aoede::Player::SoX
               _build_argument_list(%output_properties),
               $to
           );
-        $audio_handle->autoflush(1);
-        binmode $audio_handle;
-        $self->_set_handle($audio_handle);
-        print $audio_handle ($piddle->get_dataref->$*);
-        close $audio_handle;
+        $handle->autoflush(1);
+        binmode $handle;
+        $self->_set_handle($handle);
+        print $handle ($piddle->get_dataref->$*);
+        close $handle;
     }
 
     sub _build_argument_list (%hash) {
@@ -141,9 +141,10 @@ The number of channels.
    $path = Audio::Aoede::Player::Sox->play_lpcm($lpcm,$to)
 
 Send the contents of the L<Audio::Aoede::LPCM> object C<$lpcm> to
-C<$to>.  The file format of C<$to> is deduced by sox from the
-extension of file name.  If C<$to> is not provided, uses the default
-output channel of so which is the default sound card.
+C<$to>, using the specification of the LPCM object.  The file format
+of C<$to> is deduced by sox from the extension of file name.  If
+C<$to> is not provided, uses the default output channel of so which is
+the default sound card.
 
 =head2 C<$s-E<gt>start>
 
@@ -153,7 +154,7 @@ Start SoX and open the pipe.
 
 Close the pipe, which will stop SoX.
 
-=head2 C<< $s->write_piddle($piddle[,$output]) >>
+=head2 C<< $s->play_piddle($piddle[,$output]) >>
 
 Write C<$piddle> conforming to the player's specification to the
 specified output path, or to the default sound device if no path is
