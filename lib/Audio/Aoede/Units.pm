@@ -17,8 +17,7 @@ our @EXPORT_OK = qw(
                        dB
                        hz2mel
                        mel2hz
-                       notes_per_second
-                       rate
+                       seconds_per_note
                        tempo
                );
 
@@ -30,12 +29,6 @@ use constant HALFTONE => 2**(1/12);
 use constant CENT     => 2**(1/1200);
 use constant dB       => 2**(1/10);
 use constant cB       => 2**(1/100);
-
-# The rate (number of samples per second) should only be set once, or
-# left at its default value.
-my $rate = 44100;
-
-sub rate () { return $rate };
 
 # The tempo is a MIDI term giving the number of microseconds per
 # quarter note.  This can be changed.  We actually want to avoid this
@@ -51,7 +44,7 @@ sub set_tempo ($new_tempo) {
     return;
 }
 
-sub notes_per_second {
+sub seconds_per_note {
     return $tempo / 250_000;
 }
 

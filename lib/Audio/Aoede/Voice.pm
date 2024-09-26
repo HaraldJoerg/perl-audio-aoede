@@ -10,7 +10,7 @@ class Audio::Aoede::Voice {
     use PDL;
 
     use Audio::Aoede::Note;
-    use Audio::Aoede::Units qw( rate notes_per_second );
+    use Audio::Aoede::Units qw( seconds_per_note );
     use Audio::Aoede::Envelope;
 
     field $function          :param;
@@ -24,7 +24,7 @@ class Audio::Aoede::Voice {
     #     my @note_strings = split " ",$notes_string; # " " strips leading spaces
     #     for my $note_string(@note_strings) {
     #         my $note = Audio::Aoede::Note->parse_note($note_string);
-    #         my $n_samples = $note->duration() * rate() * notes_per_second;
+    #         my $n_samples = $note->duration() * rate() * seconds_per_note;
     #         my @pitches = $note->pitches;
     #         my $new_samples = @pitches ?
     #             sumover pdl(map {
@@ -38,7 +38,7 @@ class Audio::Aoede::Voice {
 
     method add_notes(@notes) {
         for my $note (@notes) {
-            my $n_samples = $note->duration() * rate() * notes_per_second();
+            my $n_samples = $note->duration() * rate() * seconds_per_note();
             my $new_samples;
             if (defined $carry) {
                 if ($carry->dim(0) > $n_samples) {
