@@ -36,9 +36,9 @@ class Audio::Aoede::Voice {
     #     }
     # }
 
-    method add_notes(@notes) {
-        for my $note (@notes) {
-            my $n_samples = $note->duration() * rate() * seconds_per_note();
+    method add_notes($track,$rate,$bpm) {
+        for my $note (@$track) {
+            my $n_samples = $note->duration() * $rate * 240/$bpm;
             my $new_samples;
             if (defined $carry) {
                 if ($carry->dim(0) > $n_samples) {

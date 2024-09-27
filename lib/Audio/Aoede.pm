@@ -100,9 +100,9 @@ class Audio::Aoede {
                 $voices[$i_track] //=
                     Audio::Aoede::Voice->new(
                         function          => $self->square_wave(),
-                        envelope_function => plucked_envelope(),
+                        envelope_function => $self->plucked_envelope(),
                     );
-                $voices[$i_track]->add_notes(@$track);
+                $voices[$i_track]->add_notes($track,$rate,$section->bpm);
                 $i_track++;
             }
         }
@@ -191,25 +191,23 @@ class Audio::Aoede {
         }
     }
 
-}
-
-use PDL;
-
-sub plucked_envelope () {
-    require Audio::Aoede::Envelope::ADSR;
-    return sub ($frequency) {
-        # We need to play around with this to find suitable values.
-        # Maybe we could look it up somewhere?
-        my $samples_per_period = Audio::Aoede::Units::rate() / $frequency;
-        # FIXME: The envelopes can be cached
-        return Audio::Aoede::Envelope::ADSR->new(
-            attack  => int(2 * $samples_per_period),
-            decay   => 3000 * sqrt($samples_per_period),
-            sustain => 0.0,
-            release => int(5 * $samples_per_period),
-        );
+    method plucked_envelope () {
+        require Audio::Aoede::Envelope::ADSR;
+        return sub ($frequency) {
+            # We need to play around with this to find suitable values.
+            # Maybe we could look it up somewhere?
+            my $samples_per_period = $rate / $frequency;
+            # FIXME: The envelopes can be cached
+            return Audio::Aoede::Envelope::ADSR->new(
+                attack  => int(2 * $samples_per_period),
+                decay   => 3000 * sqrt($samples_per_period),
+                sustain => 0.0,
+                release => int(5 * $samples_per_period),
+            );
+        }
     }
 }
+
 
 1;
 
