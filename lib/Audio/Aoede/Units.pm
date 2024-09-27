@@ -15,16 +15,16 @@ our @EXPORT_OK = qw(
                        PI
                        cB
                        dB
+                       default_tempo
                        hz2mel
                        mel2hz
                        seconds_per_note
-                       tempo
                );
 
 use Carp;
 
-use constant PI       => atan2(0,-1); # Math::Trig collides with PDL
 use constant A440     => 440;
+use constant PI       => atan2(0,-1); # Math::Trig collides with PDL
 use constant HALFTONE => 2**(1/12);
 use constant CENT     => 2**(1/1200);
 use constant dB       => 2**(1/10);
