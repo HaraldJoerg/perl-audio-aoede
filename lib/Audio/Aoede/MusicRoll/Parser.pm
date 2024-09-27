@@ -181,7 +181,7 @@ sub parse_file ($path) {
                                 + $diatonic_modifiers{$+{modifier}}
                                 + ($octave+1) * 12;
                             $previous_octave = $octave;
-                            my $pitch = 2 * A440 * (HALFTONE**($number-69));
+                            my $pitch = A440 * (HALFTONE**($number-69));
                         } @notes;
                         $note = Audio::Aoede::Note->new(
                             duration => $duration,

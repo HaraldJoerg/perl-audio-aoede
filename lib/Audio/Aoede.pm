@@ -95,7 +95,6 @@ class Audio::Aoede {
         my @voices;
         for my $section ($music_roll->sections) {
             my $i_track = 0;
-            Audio::Aoede::Units::set_bpm($section->bpm);
             for my $track ($section->tracks) {
                 $voices[$i_track] //=
                     Audio::Aoede::Voice->new(

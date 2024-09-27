@@ -30,31 +30,21 @@ use constant CENT     => 2**(1/1200);
 use constant dB       => 2**(1/10);
 use constant cB       => 2**(1/100);
 
+sub seconds_per_note ($bpm) {
+    return 240/$bpm;
+}
+
 # The tempo is a MIDI term giving the number of microseconds per
 # quarter note.  This can be changed.  We actually want to avoid this
 # unit and use beats per minute whereever applicable.
-my $tempo = 500_000;
+my $default_tempo = 500_000;
 
-sub tempo () {
-    return $tempo;
+sub default_tempo () {
+    return $default_tempo;
 }
 
-sub set_tempo ($new_tempo) {
-    $tempo = $new_tempo;
-    return;
-}
-
-sub seconds_per_note {
-    return $tempo / 250_000;
-}
-
-sub bpm () {
-    return 6E7/$tempo;
-}
-
-sub set_bpm ($bpm) {
-    $tempo = 6E7/$bpm;
-    return;
+sub tempo ($bpm) {
+    return 6E7/$bpm;
 }
 
 # Conversion between frequency and mel scale
