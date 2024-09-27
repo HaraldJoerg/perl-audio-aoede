@@ -16,11 +16,17 @@ class Audio::Aoede::Note {
 
     field $duration :param;
     field $pitches  :param = [];
+    field $spn      :param = undef;
     field @pitches;
 
     ADJUST {
         @pitches = @$pitches;
         undef $pitches;
+        if (! @pitches) {
+            @pitches = map {
+                from_spn($_)
+            } split /\s*\+\s*/,$spn;
+        }
     }
 
     method duration () {
@@ -32,6 +38,38 @@ class Audio::Aoede::Note {
         return @pitches;
     }
 
+    # FIXME: This is duplicate code, it also appears in the MusicRoll
+    # parser.  I should decide where I want that stuff, but do not
+    # want to right now.
+    my %diatonic_notes = (
+        C => 0,   D => 2,   E => 4,   F => 5,   G => 7,   A => 9,   B => 11,
+    );
+    my %diatonic_modifiers = (
+        ''   =>  0,
+        'b'  => -1,   '♭' => -1,
+        'bb' => -2,   '𝄫' => -2,
+        '#'  =>  1,   '♯' =>  1,
+        '##' =>  2,   '𝄪' =>  2,
+    );
+    my $spn_pattern =
+        qr{
+              (?<base>[A-G])    # The base note name
+              (?<modifier>
+                  [b♭𝄫#♯𝄪] # up or down Unicode or ASCII
+              |
+                  bb | \#\#
+              )?
+              (?<octave>[\d]|-1) # We don't support the tenth octave
+      }ix;
+
+    sub from_spn ($spn) {
+        $spn =~ $spn_pattern;
+        my $octave = $+{octave};
+        my $number = $diatonic_notes{uc $+{base}}
+            + $diatonic_modifiers{$+{modifier} // ''}
+            + ($octave+1) * 12;
+        return A440 * (HALFTONE**($number-69));
+    }
 }
 
 1;

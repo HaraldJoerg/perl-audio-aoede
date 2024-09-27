@@ -1,6 +1,7 @@
 # ABSTRACT: Create and Analyze Sound
 package Audio::Aoede 0.01;
-use 5.032;
+use 5.036; 
+use experimental qw(for_list);
 use Feature::Compat::Class;
 use feature 'signatures';
 no warnings 'experimental';
@@ -107,6 +108,22 @@ class Audio::Aoede {
         }
         $self->write(@voices);
         return;
+    }
+
+    method play_notes (@notes) {
+        require Audio::Aoede::Note;
+        my $track = [];
+        for my ($pitch,$duration) (@notes) {
+            push @$track, Audio::Aoede::Note->new(
+                spn => $pitch, duration => $duration
+            );
+        }
+        my $voice =  Audio::Aoede::Voice->new(
+            function          => $self->square_wave(),
+#            envelope_function => $self->plucked_envelope(),
+        );
+        $voice->add_notes($track,$rate);
+        $self->write($voice);
     }
 
 

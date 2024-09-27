@@ -18,25 +18,8 @@ class Audio::Aoede::Voice {
     field $samples = pdl([]);
     field $carry;
 
-    # Currently defunct, I might want to enable it (again) later.
-    #
-    # method add_named_notes($notes_string) {
-    #     my @note_strings = split " ",$notes_string; # " " strips leading spaces
-    #     for my $note_string(@note_strings) {
-    #         my $note = Audio::Aoede::Note->parse_note($note_string);
-    #         my $n_samples = $note->duration() * rate() * seconds_per_note;
-    #         my @pitches = $note->pitches;
-    #         my $new_samples = @pitches ?
-    #             sumover pdl(map {
-    #                 $function->($n_samples,$_)
-    #             } $note->pitches)->transpose
-    #         :
-    #             zeroes($n_samples);
-    #         $samples = $samples->append($new_samples);
-    #     }
-    # }
 
-    method add_notes($track,$rate,$bpm) {
+    method add_notes($track,$rate,$bpm = 120) {
         for my $note (@$track) {
             my $n_samples =  $note->duration * seconds_per_note($bpm) * $rate;
             my $new_samples;
@@ -131,9 +114,11 @@ Work in progress!
 
 =back
 
-=item C<add_notes(@notes)>
+=item C<add_notes($notes_ref,$rate,$bpm)>
 
-Add a list of L<Audio::Aoede::Note> objects to the voice.
+Add an array of L<Audio::Aoede::Note> objects, given as a reference,
+to the voice.  C<$rate> is the sample rate. C<$bpm> the current speed
+in (beats per minute).
 
 =item C<samples>
 
