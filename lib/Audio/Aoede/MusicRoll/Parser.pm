@@ -172,10 +172,10 @@ sub parse_file ($path) {
                     if ($+{notes}) {
                         my @notes = split /\+/,$+{notes};
                         my @pitches = map {
-                            m{(?<base>[A-G])
+                            m/(?<base>[A-G])
                               (?<modifier>[b♭#♯]?) #
                               (?<octave>[\d]|-1)?
-                         }ix;
+                             /ix;
                             my $octave = $+{octave} // $previous_octave;
                             my $number = $diatonic_notes{$+{base}}
                                 + $diatonic_modifiers{$+{modifier}}
