@@ -216,7 +216,7 @@ class Audio::Aoede {
             # FIXME: The envelopes can be cached
             return Audio::Aoede::Envelope::ADSR->new(
                 attack  => int(2 * $samples_per_period),
-                decay   => 3000 * sqrt($samples_per_period),
+                decay   => 200 * $samples_per_period,
                 sustain => 0.0,
                 release => int(5 * $samples_per_period),
             );
