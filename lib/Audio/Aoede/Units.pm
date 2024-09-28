@@ -34,14 +34,16 @@ sub seconds_per_note ($bpm) {
     return 240/$bpm;
 }
 
+# "Absolute Timecents" are a weird time scale used in soundfont files.
+# An absolute timecent value of 0 corresponds to 1 second.
+sub seconds_per_timecent ($tc) {
+    return CENT**$tc;
+}
+
 # The tempo is a MIDI term giving the number of microseconds per
 # quarter note.  This can be changed.  We actually want to avoid this
 # unit and use beats per minute whereever applicable.
-my $default_tempo = 500_000;
-
-sub default_tempo () {
-    return $default_tempo;
-}
+use constant default_tempo => 500_000;
 
 sub tempo ($bpm) {
     return 6E7/$bpm;
