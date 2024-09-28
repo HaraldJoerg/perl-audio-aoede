@@ -16,7 +16,7 @@ class Audio::Aoede::Note {
 
     field $duration :param;
     field $pitches  :param = [];
-    field $spn      :param = undef;
+    field $spn      :param = '';
     field @pitches;
 
     ADJUST {
