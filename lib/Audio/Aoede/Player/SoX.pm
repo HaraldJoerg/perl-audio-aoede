@@ -40,6 +40,7 @@ class Audio::Aoede::Player::SoX
         );
     }
 
+    # Applications can change the path using this.
     sub set_sox_path ($class,$path) {
         $sox = $path;
     }
@@ -48,47 +49,68 @@ class Audio::Aoede::Player::SoX
     # create a player object in advance.
     # In this method, $handle is *not* the object's field, but I fail
     # to come up with a better name.
+
+    # NOTE: This is a class method, it does not need to keep any state
+    # in an object.  All required input is contained in the LPCM
+    # object.
     sub play_lpcm ($class, $lpcm, $to = undef) {
         $to //= '--default'; # we don't have that in signatures yet
         my %spec = $lpcm->spec;
-        open (my $handle,'|-',
-              $sox,
-              '--no-show-progress',
-              _build_argument_list(%spec),
-              '-', # We're going to feed STDIN
-              _build_argument_list(%extra_output_properties,
-                                   channels => $spec{channels}),
-              $to,
-          );
-        $handle->autoflush(1);
-        binmode $handle;
+        my $handle = _open_pipe(
+            \%spec,
+            {
+                %extra_output_properties,
+                channels => $spec{channels}
+            },
+            $to // '--default',
+        );
         print $handle $lpcm->data;
         close $handle;
         return $to;
     }
 
+    # A sound piddle does not contain the metadata we need to build
+    # the SoX parameter lists, right now we require that a player
+    # object is built in advance which contains these.  We might
+    # convert it into a class method which accepts input and output
+    # specs similar to LPCM objects.  But then, we might not, because
+    # we'd need to validate the specs.
     method play_piddle ($piddle,$to = undef) {
-        $to //= $out;
-        open (my $handle,'|-',
-              $sox,
-              '--no-show-progress',
-              _build_argument_list(%input_properties),
-              '-', # We're going to feed STDIN
-              _build_argument_list(%output_properties),
-              $to
-          );
-        $handle->autoflush(1);
-        binmode $handle;
-        $self->_set_handle($handle);
+        my $handle = _open_pipe(\%input_properties,
+                                \%output_properties,
+                                $to);
         print $handle ($piddle->get_dataref->$*);
         close $handle;
     }
 
-    sub _build_argument_list (%hash) {
-        return map { ("--$_", $hash{$_} // ()) } keys %hash;
+    method start {
+        $self->_set_handle(_open_pipe(\%input_properties,
+                                      \%output_properties,
+                                      $out));
     }
 
+    method stop {
+        $self->handle->close;
+    }
 
+    sub _build_argument_list ($hashref) {
+        return map { ("--$_", $hashref->{$_} // ()) } keys %$hashref;
+    }
+
+    sub _open_pipe ($input_spec,$output_spec,$to) {
+        $to //= '--default'; # FIXME: In the future this goes in the signature
+        open (my $handle, '|-',
+              $sox,
+              '--no-show-progress',
+              _build_argument_list($input_spec),
+              '-', # We're going to feed STDIN
+              _build_argument_list($output_spec),
+              $to,
+          );
+        $handle->autoflush(1);
+        $handle->binmode;
+        return $handle;
+    }
 }
 
 1; # for whatever reason :)

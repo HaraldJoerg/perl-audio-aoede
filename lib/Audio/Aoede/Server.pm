@@ -6,7 +6,7 @@ no warnings "experimental";
 
 class Audio::Aoede::Server {
     field $rate     :param = 44100; # Because that's what my card does
-    field $encoding :param = 'signed-integer';
+    field $encoding :param = 'signed-integer'; # Not yet usable by SoX
     field $bits     :param = 16;
     field $channels :param = 1;
 
@@ -22,7 +22,7 @@ class Audio::Aoede::Server {
     use Time::HiRes qw(tv_interval gettimeofday usleep);
     use constant DEBUG => '';
 
-    use Audio::Aoede::SoX;
+    use Audio::Aoede::Player::SoX;
 
     ADJUST {
         @voices = ();
@@ -60,9 +60,9 @@ class Audio::Aoede::Server {
     }
 
     method start () {
-	$player = Audio::Aoede::SoX->new(
+	$player = Audio::Aoede::Player::SoX->new(
 	    rate	=> $rate,
-	    encoding	=> $encoding,
+	    # encoding	=> $encoding,
 	    bits	=> $bits,
 	    channels	=> $channels
 	);

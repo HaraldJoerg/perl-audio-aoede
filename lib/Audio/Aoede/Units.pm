@@ -2,7 +2,7 @@
 package Audio::Aoede::Units;
 use 5.032;
 use warnings;
-use utf8; # for the note names
+use utf8; # for the IPA vowels
 
 use feature 'signatures';
 no warnings 'experimental';
@@ -19,6 +19,9 @@ our @EXPORT_OK = qw(
                        hz2mel
                        mel2hz
                        seconds_per_note
+                       seconds_per_timecent
+                       timecents_per_second
+                       symbol
                );
 
 use Carp;
@@ -27,8 +30,8 @@ use constant A440     => 440;
 use constant PI       => atan2(0,-1); # Math::Trig collides with PDL
 use constant HALFTONE => 2**(1/12);
 use constant CENT     => 2**(1/1200);
-use constant dB       => 2**(1/10);
-use constant cB       => 2**(1/100);
+use constant dB       => 10**(1/10);
+use constant cB       => 10**(1/100);
 
 sub seconds_per_note ($bpm) {
     return 240/$bpm;
@@ -38,6 +41,10 @@ sub seconds_per_note ($bpm) {
 # An absolute timecent value of 0 corresponds to 1 second.
 sub seconds_per_timecent ($tc) {
     return CENT**$tc;
+}
+
+sub timecents_per_second ($s) {
+    return log($s) / log(CENT);
 }
 
 # The tempo is a MIDI term giving the number of microseconds per
@@ -67,6 +74,44 @@ sub hz2mel ($hz) {
 sub mel2hz ($mel) {
     return 700 * (exp($mel/1127) - 1);
 }
+
+
+# From: https://www.compart.com/en/unicode/block/U+2300
+my %symbols = (
+    "REVERSE" => chr(0x23F4),
+    "PLAY"    => chr(0x23F5),
+    "PAUSE"   => chr(0x23F8),
+    "STOP"    => chr(0x23F9),
+    "RECORD"  => chr(0x23FA),
+    "POWER"   => chr(0x23FB)
+);
+
+sub symbol ($name) {
+    return ($symbols{$name} // chr(0xFFFD));
+}
+
+
+# This is just for documentation.  Elements of a constant hash are
+# ... not really accessible.
+# Source: Wikipedia
+use constant vowels => (
+    i => [240,2400],
+    y => [235,2100],
+    e => [390,2300],
+    ø => [370,1900],
+    ɛ => [610,1900],
+    œ => [585,1710],
+    a => [850,1610],
+    ɶ => [820,1530],
+    ɑ => [750, 940],
+    ɒ => [700, 760],
+    ʌ => [600,1170],
+    ɔ => [500, 700],
+    ɤ => [460,1310],
+    o => [360, 640],
+    ɯ => [300,1390],
+    u => [250, 595],
+);
 
 __END__
 

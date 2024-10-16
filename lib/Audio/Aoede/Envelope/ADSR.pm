@@ -13,6 +13,8 @@ class Audio::Aoede::Envelope::ADSR {
     field $sustain :param;
     field $release :param;
 
+    # FIXME: We can get a concave decay with a formula like this:
+    # $s = zeroes(10)->xlinvals((1-$sustain)**0.5,0)->pow(2)+$sustained
     ADJUST {
         # Convert numbers of samples to 1D PDL arrays
         $attack  = $attack

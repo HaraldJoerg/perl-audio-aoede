@@ -145,12 +145,40 @@ class Audio::Aoede {
         return 2 * sqrt($real*$real + $imag*$imag) / $n_samples;
     }
 
+    method read_wav ($path) {
+        require Audio::Aoede::LPCM;
+        my $lpcm = Audio::Aoede::LPCM->new_from_wav($path);
+
+
+        my $n_samples = $lpcm->n_samples;
+        my $sound = short zeroes($lpcm->channels,$n_samples);
+        my $sound_ref = $sound->get_dataref;
+        $$sound_ref = $lpcm->data;
+        $sound->upd_data;
+
+        # Now split it into the individual channels for further analysis
+        my @channels = $sound->transpose->dog;
+        return @channels;
+    }
+
+
+    method record_mono ($time) {
+        require Audio::Aoede::Recorder::SoX;
+        my $recorder = Audio::Aoede::Recorder::SoX->new(
+            rate => $rate,
+            bits => $bits,
+            channels => 1
+        );
+        return $recorder->record_mono($time);
+    }
+
     method server {
         require Audio::Aoede::Server;
         return Audio::Aoede::Server->new(
             rate => $rate
         )
     }
+
 
     method sine_wave () {
         return sub ($n_samples, $frequency, $since = 0) {
