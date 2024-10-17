@@ -25,7 +25,7 @@ my $server = Audio::Aoede::Server->new(
 my $main = Prima::MainWindow->create(
     text  => 'Sound from Scratch',
     backColor => cl::White,
-    size => [1080,800],
+    size => [600,600],
     # Prima::Menu has a description of these formats
     menuItems =>
     [
@@ -94,6 +94,43 @@ $play = $controls_widget->insert(
         }
     },
     pack => { side => 'left', fill => 'both' },
+);
+
+my $sliders = $main->insert(
+    Widget =>
+    backColor => cl::White,
+    pack =>  { side => 'top', fill => 'both' },
+);
+my $slider_size = [25,100];
+my $slider1 = $sliders->insert(
+    Slider =>
+    vertical => 1,
+    pack => { side => 'left', fill => 'both' },
+    value => 55,
+    autoTrack => 1,
+    min => 0,
+    max => 100,
+    scheme => ss::Axis,
+    ticks => [],
+    increment => 1,
+    size => $slider_size,
+    ribbonStrip => 1,
+    borderWidth => 2,
+);
+my $slider2 = $sliders->insert(
+    Slider =>
+    vertical => 1,
+    pack => { side => 'left', fill => 'both' },
+    value => 55,
+    autoTrack => 1,
+    min => 0,
+    max => 100,
+    scheme => ss::Axis,
+    ticks => [],
+    increment => 1,
+    size => $slider_size,
+    ribbonStrip => 1,
+    borderWidth => 2,
 );
 
 my $o_window;
