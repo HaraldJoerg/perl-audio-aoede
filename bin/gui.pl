@@ -12,6 +12,7 @@ use lib "$FindBin::Bin/../lib";
 use Audio::Aoede::Server;
 use Audio::Aoede::UI::Oscilloscope;
 use Audio::Aoede::UI::Register;
+use Audio::Aoede::UI::Tuner;
 use Audio::Aoede::Units qw( symbol );
 
 ######################################################################
@@ -98,6 +99,9 @@ $play = $controls_widget->insert(
 
 my $register = Audio::Aoede::UI::Register->new();
 $register->insert_to($main);
+
+my $tuner = Audio::Aoede::UI::Tuner->new();
+$tuner->insert_to($main);
 
 my $o_window;
 my $oscilloscope;
