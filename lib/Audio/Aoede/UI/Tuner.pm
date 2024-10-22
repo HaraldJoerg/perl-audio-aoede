@@ -9,6 +9,7 @@ class Audio::Aoede::UI::Tuner {
     field $tuner;
     field $value = 440;
     field $inputline;
+    field $frob_carry = 0;
 
     use Prima qw( Sliders Label InputLine );
 
@@ -31,11 +32,16 @@ class Audio::Aoede::UI::Tuner {
             InputLine =>
             pack => { side => 'left' },
             text => $value,
-            onLeave => sub ($widget) { $self->set_value($widget->text) },
-            onKeyDown => sub ($widget,$code,$key,@) {
-                return unless $key;
-                return unless ($key == kb::Enter  ||  $key == kb::Return);
+            onChange => sub ($widget) {
                 $self->set_value($widget->text);
+            },
+            onValidate => sub ($widget,$textref) {
+                if ($$textref > 9999.9) {
+                    $$textref = 9999.9;
+                }
+                if ($$textref < 0) {
+                    $$textref = 0;
+                }
             },
         );
         my $controls = $tuner->insert(
@@ -79,6 +85,7 @@ class Audio::Aoede::UI::Tuner {
         }
         $tuners[1]->value(4);
         $tuners[2]->value(4);
+        $frob_carry = 1;
     };
 
     method insert_to ($parent) {
@@ -86,28 +93,34 @@ class Audio::Aoede::UI::Tuner {
     }
 
     method _new_value($index,$new) {
-        if ($new == 0  and  $values[$index] == 9
-            and  $index > 0) {
-            if ($self->_carry_add($index-1)) {
-                $values[$index] = 0;
-            }
-            else {
+        if ($frob_carry) {
+            if ($new == 0  and  $values[$index] == 9
+                and  $index > 0) {
+                if ($self->_carry_add($index-1)) {
+                    $values[$index] = 0;
+                }
+                else {
                 $tuners[$index]->value($values[$index]);
             }
-        }
-        elsif ($new == 9  and  $values[$index] == 0
-            and $index > 0) {
-            if ($self->_carry_subtract($index-1)) {
-                $values[$index] = 9;
+            }
+            elsif ($new == 9  and  $values[$index] == 0
+                   and $index > 0) {
+                if ($self->_carry_subtract($index-1)) {
+                    $values[$index] = 9;
+                }
+                else {
+                    $tuners[$index]->value($values[$index]);
+                }
             }
             else {
-                $tuners[$index]->value($values[$index]);
+                $values[$index] = $new;
             }
+            $value = $self->_current_value;
+            $inputline->text($value);
         }
         else {
-            $values[$index] = $new;
+            $tuners[$index]->value($new);
         }
-        $value = $self->_current_value;
     }
 
     method value {
@@ -158,16 +171,18 @@ class Audio::Aoede::UI::Tuner {
     }
 
     method set_value ($new) {
+        $frob_carry = 0;
         if ($new > 9999.9) {
             $new = 9999.9;
         }
         if ($new <= 0) {
-            $new = 20; # arbitrary minimum, not yet enforced
+            $new = 0; # arbitrary minimum, not yet enforced
         }
-        my $formatted = sprintf "%05d",10*$new;
+        my $formatted = sprintf "%05d",10*($new+0.01);
         for my $digit (0..4) {
             $tuners[$digit]->value(substr $formatted,$digit,1);
         }
+        $frob_carry = 1;
     }
 }
 

@@ -93,6 +93,11 @@ class Audio::Aoede::Player::SoX
         $self->handle->close;
     }
 
+    method send_piddle ($piddle) {
+        print {$self->handle} $piddle->get_dataref->$*;
+    }
+
+
     sub _build_argument_list ($hashref) {
         return map { ("--$_", $hashref->{$_} // ()) } keys %$hashref;
     }

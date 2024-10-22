@@ -82,8 +82,9 @@ class Audio::Aoede::Server {
 
         my $end_sample  = int (tv_interval($start_time) * $rate + 0.5);
         my $todo        = $end_sample - $current_sample;
-	$player->play_piddle($self->fetch_data($todo,
-					       $current_sample));
+        my $collected = $self->fetch_data($todo,$current_sample);
+        my $piddle = short($collected) * $amplitude;
+	$player->send_piddle($piddle);
         $current_sample += $todo;
     }
 
