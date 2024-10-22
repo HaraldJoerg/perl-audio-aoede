@@ -106,8 +106,8 @@ there are noises which can not be described by one frequency.
 
 The initial sample number is not used yet.  It is intended to support
 voices with low-frequency oscillators.  The voice might be able to
-provude "next" samples and keep track of that value by itself, but
-this fais if there's more than one consumer for the voice (for
+provide "next" samples and keep track of that value by itself, but
+this fails if there's more than one consumer for the voice (for
 example, a sound backend and an oscilloscope).
 
 Work in progress!

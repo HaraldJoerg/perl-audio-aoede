@@ -18,8 +18,8 @@ use Audio::Aoede::Units qw( symbol );
 
 ######################################################################
 # Configuration hardwired right now
-my $tick = 1/50;  # in synch with my graphics card
-my $rate = 48000; # e have 800 samples per second
+my $tick = 1/60;  # in synch with my graphics card
+my $rate = 48000; # we have 800 samples per second
 my %timer_objects;
 
 
