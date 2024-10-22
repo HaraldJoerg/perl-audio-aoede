@@ -23,7 +23,7 @@
     1/16:R C#3 E3 G3    C#4 C#4 E4 G4    C#5 C#5 E5 G5     1/8:C#5+G#5+C#6   C#5+G#5+C#6
     1/8:A1     A2       A1      A2       A1      A2        A1                A2
 
-!set tracks=3
+!set tracks=3; bpm=140
     1/8:B#4+G#5+B#5   1/16:G#4 G#5   G#4 G#5 A#4 G#5   B#4 G#5 C#5 G#5 D#5 G#5 B#4 G#5
     1/8:G#2           B#3            B#3     C#4       D#4     E4      F#4     D#4
     1/8:G#1           7/8:G#3
@@ -40,7 +40,7 @@
     1/8:F#4      E4        A4      G#4        F#4     E4      D#4     C#4
     1/1:G#3
 
-!set tracks=2
+!set tracks=2; bpm=140
     1/16:G#4 G#5 A#4 G5    G#4 G#5 A#4 G5    G#4 G#5 A#4 G5    G#4 G#5 A#4 G5
     1/8:G#3+B#3  G#3+C#4   G#3+B#3 G#3+C#4   G#3+B#3 G#3+C#4   G#3+B#3 G#3+C#4
 
