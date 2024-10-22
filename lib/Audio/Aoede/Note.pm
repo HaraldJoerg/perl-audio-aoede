@@ -14,7 +14,7 @@ class Audio::Aoede::Note {
 
     use Audio::Aoede::Units qw( A440 HALFTONE );
 
-    field $duration :param;
+    field $duration :param = 0;
     field $pitches  :param = [];
     field $spn      :param = '';
     field @pitches;

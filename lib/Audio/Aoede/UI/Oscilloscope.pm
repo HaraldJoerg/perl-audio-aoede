@@ -27,7 +27,7 @@ class Audio::Aoede::UI::Oscilloscope {
             color => cl::Green,
             backColor => cl::Black,
             size => $size,
-            sizeMin => [10,10],
+            sizeMin => [50,50],
             pack => $pack,
             x => { format_tick => sub { ' ' } },
             y => { min => -1.05, # leave some margin
@@ -43,7 +43,6 @@ class Audio::Aoede::UI::Oscilloscope {
     }
 
     method update () {
-        my $since = $source->current_sample;
         my $samples_per_period = $rate / $frequency;
 	# Fetch two periods and find a suitable starting point
 	my $data = $source->fetch_data(2 * $samples_per_period);

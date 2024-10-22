@@ -184,7 +184,7 @@ class Audio::Aoede {
         return sub ($n_samples, $frequency, $since = 0) {
             my $samples_per_period = $rate / $frequency;
             my $norm = 2 * PI() / $samples_per_period;
-            $since -= int ($since/$samples_per_period);
+            $since -= $samples_per_period * int $since/$samples_per_period;
             my $phase = (sequence($n_samples) + $since) * $norm;
             my $samples = sin($phase);
             return $samples;

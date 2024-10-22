@@ -10,11 +10,12 @@ class Audio::Aoede::UI::Tuner {
     field $value = 440;
     field $inputline;
     field $frob_carry = 0;
+    field $trigger = sub { };
 
     use Prima qw( Sliders Label InputLine );
 
     ADJUST {
-        @values = (0) x 5;
+        @values = (0,4,4,0,0);
 
         $tuner = Prima::Widget->new(
             backColor => cl::White,
@@ -34,6 +35,7 @@ class Audio::Aoede::UI::Tuner {
             text => $value,
             onChange => sub ($widget) {
                 $self->set_value($widget->text);
+                $trigger->();
             },
             onValidate => sub ($widget,$textref) {
                 if ($$textref > 9999.9) {
@@ -91,6 +93,12 @@ class Audio::Aoede::UI::Tuner {
     method insert_to ($parent) {
         $tuner->owner($parent);
     }
+
+
+    method set_trigger ($coderef) {
+        $trigger = $coderef;
+    }
+
 
     method _new_value($index,$new) {
         if ($frob_carry) {
@@ -171,6 +179,7 @@ class Audio::Aoede::UI::Tuner {
     }
 
     method set_value ($new) {
+        $value = $new;
         $frob_carry = 0;
         if ($new > 9999.9) {
             $new = 9999.9;

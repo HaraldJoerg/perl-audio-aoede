@@ -14,7 +14,7 @@ class Audio::Aoede::Player::SoX
     my    %extra_output_properties =  ($^O =~ /MSWin32/)
         ? (type => 'waveaudio')
         : ();
-
+    my $amplitude = 2**15-1;
 
     field $rate     :param;
     field $encoding = 'signed-integer';
@@ -22,7 +22,7 @@ class Audio::Aoede::Player::SoX
     field $channels :param;
     field $out      :param = '--default';
     field %input_properties;
-    field $input_buffer = 8192;
+    field $input_buffer = 2048;
     field %output_properties;
 
     ADJUST {
@@ -83,24 +83,41 @@ class Audio::Aoede::Player::SoX
         close $handle;
     }
 
+
     method start {
         $self->_set_handle(_open_pipe(\%input_properties,
                                       \%output_properties,
                                       $out));
     }
 
+
     method stop {
         $self->handle->close;
     }
+
 
     method send_piddle ($piddle) {
         print {$self->handle} $piddle->get_dataref->$*;
     }
 
 
+    method update () {
+        my $todo = $self->todo();
+        if (! $self->silent) {
+            my $source = $self->source;
+            my $data = $source->fetch_data($todo,$self->next_sample);
+            my $sound = short($data * $amplitude);
+            $self->send_piddle($sound);
+        }
+        $self->done($todo);
+    }
+
+
+
     sub _build_argument_list ($hashref) {
         return map { ("--$_", $hashref->{$_} // ()) } keys %$hashref;
     }
+
 
     sub _open_pipe ($input_spec,$output_spec,$to) {
         $to //= '--default'; # FIXME: In the future this goes in the signature

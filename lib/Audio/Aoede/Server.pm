@@ -10,86 +10,89 @@ class Audio::Aoede::Server {
     field $bits     :param = 16;
     field $channels :param = 1;
 
-    field $player;
     field $amplitude = 2**15-1;
 
-    field @voices;
+    field @sources;
     field $start_time;
     field $current_sample; # samples before this one have been processed
-    field $silent = 1;
 
     use PDL;
     use Time::HiRes qw(tv_interval gettimeofday usleep);
     use constant DEBUG => '';
 
-    use Audio::Aoede::Player::SoX;
+    use Audio::Aoede::Link;
 
     ADJUST {
-        @voices = ();
-        $start_time = [gettimeofday];
-        $current_sample = 0;
+        @sources = ();
+        $self->start;
     }
 
     # Returns a float piddle of $n_samples samples
     method fetch_data($n_samples,$since = $current_sample) {
         my $sound = zeroes($n_samples);
-        my $volume = 0;
-        for my $voice (@voices) {
-            $sound  += $voice->volume *
-                $voice->next_samples($n_samples,$since);
-            $volume += $voice->volume;
+        my $total_volume = 0;
+        for my $source (@sources) {
+            my $volume = $source->volume;
+            next unless $volume;
+            $sound  += $volume *
+                $source->next_samples($n_samples,$since);
+            $total_volume += $volume;
         }
-        if ($volume < 0.01) {
+        if ($total_volume < 0.01) {
             my $silence = zeroes($n_samples);
             return $silence;
         }
         else {
-            if ($volume > 1.0) {
-                $sound /= $volume;
+            if ($total_volume > 1.0) {
+                $sound /= $total_volume;
             }
             return $sound;
         }
     }
 
-    method add_voices(@new_voices) {
-        push @voices,@new_voices;
+
+    method add_sources (@new_sources) {
+        push @sources, map { $self->_link($_) } @new_sources;
     }
 
-    method remove_voice($old_voice) {
-        @voices = grep { $_ != $old_voice } @voices;
+
+    method set_sources (@new_sources) {
+        @sources = map { $self->_link($_) } @new_sources;
     }
 
-    method start () {
-	$player = Audio::Aoede::Player::SoX->new(
-	    rate	=> $rate,
-	    # encoding	=> $encoding,
-	    bits	=> $bits,
-	    channels	=> $channels
-	);
-	$player->start;
+
+    method remove_source ($old_source) {
+        @sources = grep { $_ != $old_source } @sources;
+    }
+
+
+    method replace_source ($old_source,$new_source) {
+        $self->remove_source($old_source);
+        $self->add_sources($new_source);
+    }
+
+
+    method start {
         $start_time = [gettimeofday];
         $current_sample = 0;
-        $silent = 0;
     }
 
-    method stop () {
-        $player->stop;
-        $silent = 1;
-    }
 
     method update () {
-	$silent  and  return;
-
-        my $end_sample  = int (tv_interval($start_time) * $rate + 0.5);
-        my $todo        = $end_sample - $current_sample;
-        my $collected = $self->fetch_data($todo,$current_sample);
-        my $piddle = short($collected) * $amplitude;
-	$player->send_piddle($piddle);
-        $current_sample += $todo;
+        $current_sample = int (tv_interval($start_time) * $rate + 0.5);
     }
+
 
     method current_sample {
         return $current_sample;
+    }
+
+
+    method _link ($source) {
+        $source->set_link(Audio::Aoede::Link->new(
+            offset => $self->current_sample,
+        ));
+        return $source;
     }
 
 }
@@ -164,14 +167,14 @@ The PDL object contains floating point numbers.  This makes it robust
 against overflow when the sound is modified by effects, but it it
 can't be played back directly without being converted appropriately.
 
-=head2 C<$s-E<gt>add_voices(@voices)>
+=head2 C<$s-E<gt>add_sources(@sources)>
 
-Add the list of voices in C<@voices> to the server.  The voices must
-behave like L<Audio::Aoede::Voice> objects.
+Add the list of sources in C<@sources> to the server.  The sources must
+behave like L<Audio::Aoede::Source> objects.
 
-=head2 C<$s-E<gt>remove_voice($voice)>
+=head2 C<$s-E<gt>remove_source($source)>
 
-Remove C<$voice> from the server.  Does nothing if the voice was not
+Remove C<$source> from the server.  Does nothing if the source was not
 added before.
 
 =head2 C<$s-E<gt>start>
@@ -194,6 +197,6 @@ in my L<Prima> programs anyway.
 
 =head2 C<$s-E<gt>current_sample()
 
-Return the next sample to be processed.  Used by
-L<Audio::Aoede::UI::Oscilloscope>.
-
+Return the next sample to be provided.  Used by
+L<Audio::Aoede::UI::Oscilloscope> and other classes which want up to
+date samples but do not need a continuous stream.

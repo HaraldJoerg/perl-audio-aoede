@@ -76,6 +76,14 @@ sub mel2hz ($mel) {
 }
 
 
+# Conversion between frequency and BARK (another weird unit for
+# pitches)
+# Source: Introduction to Praat by Dr. François Conrad
+sub hz2bark ($hz) {
+    return (26.81 / (1 + 1960/$hz)) - 0.53;
+}
+
+
 # From: https://www.compart.com/en/unicode/block/U+2300
 my %symbols = (
     "REVERSE" => chr(0x23F4),
@@ -83,7 +91,10 @@ my %symbols = (
     "PAUSE"   => chr(0x23F8),
     "STOP"    => chr(0x23F9),
     "RECORD"  => chr(0x23FA),
-    "POWER"   => chr(0x23FB)
+    "POWER"   => chr(0x23FB),
+    "LOOP"    => chr(0x27F3),
+    "MUTE"    => chr(0x1F507),
+    "SPEAKER" => chr(0x1F508),
 );
 
 sub symbol ($name) {

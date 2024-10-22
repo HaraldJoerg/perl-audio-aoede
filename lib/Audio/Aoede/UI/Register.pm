@@ -7,10 +7,11 @@ class Audio::Aoede::UI::Register {
     use Prima;
     field $stop_line;
     field @volumes;
-    field $n_stops :param = 20;
-    field $stops_per_line :param = 20;
-    field $i_stop         = 0;
+    field $n_stops        :param = 50;
+    field $stops_per_line :param = 25;
+    field $i_stop                = 0;
     field $widget;
+    field $trigger = sub { };
 
     ADJUST {
         @volumes = (0) x ($n_stops + 1); # 1-based array
@@ -55,13 +56,17 @@ class Audio::Aoede::UI::Register {
     method insert_to ($parent) {
         $widget->owner($parent);
     }
+
+
+    method set_trigger ($coderef) {
+        $widget->onChange($coderef);
+    }
 }
 
 class Audio::Aoede::UI::Register::Stop {
     field $parent    :param;
     field $label     :param;
     field $value_ref :param;
-    field $control;
 
     use Prima qw(Label Sliders InputLine);
 
@@ -96,6 +101,7 @@ class Audio::Aoede::UI::Register::Stop {
             onChange => sub ($widget) {
                 $$value_ref = $widget->value;
                 $value_display->text($widget->value);
+                $parent->owner->notify('Change');
             },
         );
         $value_display = $container->insert(
