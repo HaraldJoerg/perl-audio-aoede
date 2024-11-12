@@ -26,6 +26,11 @@ class Audio::Aoede::Link {
     }
 
 
+    method done_to ($new_next) {
+        $next = $new_next;
+    }
+
+
     method offset {
         return $offset;
     }

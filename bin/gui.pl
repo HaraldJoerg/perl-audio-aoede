@@ -29,7 +29,6 @@ my $bits = 16;    # Where should this be defined?
 my $channels = 1; # Where should this be defined?
 my $max_frequency = 22000;
 my %timer_objects;
-my $silent = 1;
 
 my $aoede = Audio::Aoede->new(
     rate => $rate,
@@ -127,25 +126,24 @@ my $key = $main->insert(
     hotkey => ' ',
     onMouseDown => sub {
         $player->unmute;
-        $silent = 0;
-        reset_sources();
+        $player->update;
     },
     onMouseUp => sub {
-        $silent = 1;
-        reset_sources();
+        $player->update;
+        $player->mute;
     },
     onKeyDown => sub ($widget,$code,@rest) {
         return unless defined $code;
         if (chr $code  eq  ' ') {
-            $silent = 0;
-            reset_sources();
             $player->unmute;
+            $player->update;
         }
     },
     onKeyUp => sub ($widget,$code,@rest) {
         return unless defined $code;
         if (chr $code  eq  ' ') {
-            $server->set_sources();
+            $player->mute;
+            $player->update;
         }
     },
 );
@@ -194,13 +192,13 @@ $speaker =  $controls_widget->insert(
         if ($widget->checked) {
             $widget->text(symbol("MUTE"));
             $player->unmute;
-            $silent = 0;
+            $player->update;
             reset_sources();
         }
         else {
             $widget->text(symbol("LOOP"));
+            $player->update;
             $player->mute;
-            $silent = 1;
             reset_sources();
         }
     },
@@ -212,7 +210,7 @@ $speaker =  $controls_widget->insert(
 sub reset_sources {
     my @sources = ();
     my $base_frequency = $tuner->value;
-    if (! $silent  &&  $base_frequency) { # User can dial it to zero
+    if ($base_frequency) { # User can dial it to zero
         my @volumes = $register->volumes;
         my $harmonic = 0;
       REGISTER_SOURCES:
@@ -266,7 +264,6 @@ sub toggle_oscilloscope {
 
 
 sub tick {
-    $server->update;
     for (values %timer_objects) {
         $_->update();
     }

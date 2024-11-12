@@ -84,6 +84,7 @@ class Audio::Aoede::Server {
 
 
     method current_sample {
+        $self->update;
         return $current_sample;
     }
 

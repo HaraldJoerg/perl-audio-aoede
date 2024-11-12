@@ -33,6 +33,7 @@ class Audio::Aoede::Player::SoX
             bits           => $bits,
             channels       => $channels,
             'input-buffer' => $input_buffer,
+            buffer         => 2048,
         );
         %output_properties = (
             channels => $channels,
@@ -88,10 +89,12 @@ class Audio::Aoede::Player::SoX
         $self->_set_handle(_open_pipe(\%input_properties,
                                       \%output_properties,
                                       $out));
+        $self->done_to($self->source->current_sample);
     }
 
 
     method stop {
+        $self->update;
         $self->handle->close;
     }
 
@@ -108,6 +111,9 @@ class Audio::Aoede::Player::SoX
             my $data = $source->fetch_data($todo,$self->next_sample);
             my $sound = short($data * $amplitude);
             $self->send_piddle($sound);
+        }
+        else {
+            $self->send_piddle(zeroes short,$todo);
         }
         $self->done($todo);
     }

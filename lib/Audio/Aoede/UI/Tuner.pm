@@ -73,6 +73,7 @@ class Audio::Aoede::UI::Tuner {
                 scheme => ss::Thermometer,
                 onChange => sub ($control,@rest) {
                     $self->_new_value($frob,$control->value);
+                    $tuner->notify('Change');
                 },
                 onStringify => sub ($control,$value,$ref) {
                     $$ref = $value;# * 10**(3-$frob);
@@ -108,8 +109,8 @@ class Audio::Aoede::UI::Tuner {
                     $values[$index] = 0;
                 }
                 else {
-                $tuners[$index]->value($values[$index]);
-            }
+                    $tuners[$index]->value($values[$index]);
+                }
             }
             elsif ($new == 9  and  $values[$index] == 0
                    and $index > 0) {

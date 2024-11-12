@@ -59,6 +59,11 @@ class Audio::Aoede::Player {
     }
 
 
+    method done_to ($new_next) {
+        $link->done_to($new_next);
+    }
+
+
     method connect ($source) {
         my $offset = $source->current_sample;
         $link = Audio::Aoede::Link->new(offset => $offset);
