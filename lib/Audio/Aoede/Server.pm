@@ -6,18 +6,14 @@ no warnings "experimental";
 
 class Audio::Aoede::Server {
     field $rate     :param = 44100; # Because that's what my card does
-    field $encoding :param = 'signed-integer'; # Not yet usable by SoX
-    field $bits     :param = 16;
     field $channels :param = 1;
-
-    field $amplitude = 2**15-1;
 
     field @sources;
     field $start_time;
     field $current_sample; # samples before this one have been processed
 
     use PDL;
-    use Time::HiRes qw(tv_interval gettimeofday usleep);
+    use Time::HiRes qw(tv_interval gettimeofday);
     use constant DEBUG => '';
 
     use Audio::Aoede::Link;
@@ -27,7 +23,7 @@ class Audio::Aoede::Server {
         $self->start;
     }
 
-    # Returns a float piddle of $n_samples samples
+    # Returns a double piddle of $n_samples samples
     method fetch_data($n_samples,$since = $current_sample) {
         my $sound = zeroes($n_samples);
         my $total_volume = 0;
@@ -139,18 +135,6 @@ optional.
 =item C<rate>
 
 The number of samples per second.  Defaults to 44100.
-
-=item C<encoding>
-
-How the samples are encoded, in the terminology of SoX.  Defaults to
-C<"signed-integer">.  Note that some functions only work with this
-encoding, or return sound in this encoding.
-
-=item C<bits>
-
-The number of bits per sample.  Defaults to 16.  Note that some
-functions only work with this bit depth, or return sound in this bit
-depth.
 
 =item C<channels>
 
