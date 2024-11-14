@@ -125,6 +125,7 @@ my $key = $main->insert(
     text => 'Play',
     hotkey => ' ',
     onMouseDown => sub {
+        $server->add_sources();
         $player->unmute;
         $player->update;
     },
@@ -207,28 +208,21 @@ $speaker =  $controls_widget->insert(
 
 
 
+use Audio::Aoede::Harmonics;
+
 sub reset_sources {
-    my @sources = ();
-    my $base_frequency = $tuner->value;
-    if ($base_frequency) { # User can dial it to zero
-        my @volumes = $register->volumes;
-        my $harmonic = 0;
-      REGISTER_SOURCES:
-        for my $volume (@volumes) {
-            my $frequency = $base_frequency * $harmonic++;
-            last REGISTER_SOURCES if $frequency > $max_frequency;
-            push @sources, Audio::Aoede::Source->new(
-                volume => $volume,
-                function => sub ($n_samples, $since) {
-                    $aoede->sine_wave->($n_samples,
-                                        $frequency,
-                                        $since
-                                    );
-                },
-            );
-        }
+    my $frequency = $tuner->value;
+    if ($frequency) {
+        my $harmonic = Audio::Aoede::Harmonics->new(
+            rate => $rate,
+            frequency => $frequency,
+            volumes => [$register->volumes],
+        );
+        $server->set_sources($harmonic);
     }
-    $server->set_sources(@sources);
+    else {
+        $server->set_sources();
+    }
 }
 
 

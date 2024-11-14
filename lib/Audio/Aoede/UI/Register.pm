@@ -14,8 +14,8 @@ class Audio::Aoede::UI::Register {
     field $trigger = sub { };
 
     ADJUST {
-        @volumes = (0) x ($n_stops + 1); # 1-based array
-        $volumes[1] = 100;
+        @volumes = (0) x $n_stops;
+        $volumes[0] = 100;
         $widget = Prima::Widget->new(
             backColor => cl::White,
             pack => { side => 'top', fill => 'both' },
@@ -30,10 +30,10 @@ class Audio::Aoede::UI::Register {
 
         my @stops = map {
             $self->stop(
-                label  => $_,
+                label  => $_+1,
                 value_ref => \$volumes[$_],
             )
-        } (1..$n_stops)
+        } (0..$n_stops-1)
     }
 
     method stop (%stop_params) {
