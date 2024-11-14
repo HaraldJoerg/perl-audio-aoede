@@ -1,6 +1,6 @@
 # ABSTRACT: Create and Analyze Sound
 package Audio::Aoede 0.01;
-use 5.036; 
+use 5.036;
 use experimental qw(for_list);
 use Feature::Compat::Class;
 use feature 'signatures';
@@ -13,6 +13,7 @@ class Audio::Aoede {
     use Audio::Aoede::LPCM;
     use Audio::Aoede::Voice;
     use Audio::Aoede::Units qw( PI );
+    use Audio::Aoede::Functions qw( :waves );
 
     field $rate   :param = 44100;
     field $channels = 1;
@@ -99,7 +100,7 @@ class Audio::Aoede {
             for my $track ($section->tracks) {
                 $voices[$i_track] //=
                     Audio::Aoede::Voice->new(
-                        function          => $self->square_wave(),
+                        function          => $self->sine_wave(),
                         envelope_function => $self->plucked_envelope(),
                     );
                 $voices[$i_track]->add_notes($track,$rate,$section->bpm);
@@ -120,7 +121,7 @@ class Audio::Aoede {
         }
         my $voice =  Audio::Aoede::Voice->new(
             function          => $self->square_wave(),
-#            envelope_function => $self->plucked_envelope(),
+            envelope_function => $self->plucked_envelope(),
         );
         $voice->add_notes($track,$rate);
         $self->write($voice);
@@ -181,45 +182,19 @@ class Audio::Aoede {
 
 
     method sine_wave () {
-        return sub ($n_samples, $frequency, $since = 0) {
-            my $samples_per_period = $rate / $frequency;
-            my $norm = 2 * PI() / $samples_per_period;
-            $since -= $samples_per_period * int $since/$samples_per_period;
-            my $phase = (sequence($n_samples) + $since) * $norm;
-            my $samples = sin($phase);
-            return $samples;
-        }
+        return f_sine_wave($rate);
     }
+
 
     method sawtooth_wave () {
-        return sub ($n_samples, $frequency, $since = 0) {
-            my $total_periods      = $since * $frequency / $rate;
-            my $samples_per_period = $rate / $frequency;
-            my $partial_period     = $total_periods - int($total_periods);
-            my $phase              = sequence($n_samples) / $samples_per_period;
-            $phase                 += $partial_period;
-            $phase                 -= long $phase;
-            $phase                 *= 2;
-            $phase                 -= 1;
-            return $phase;
-        }
+        return f_sawtooth_wave($rate);
     }
 
+
     method square_wave () {
-        return sub ($n_samples, $frequency, $since = 0) {
-            my $total_periods      = $since * $frequency / $rate;
-            my $samples_per_period = $rate / $frequency;
-            my $low_part           = 0.5;
-            my $partial_period     = $total_periods - int($total_periods);
-            my $phase              = sequence($n_samples) / $samples_per_period;
-            $phase                 += $partial_period;
-            $phase                 -= long $phase;
-            my ($lo,$hi)           = $phase->where_both($phase < $low_part);
-            $lo .= -1;
-            $hi .= 1;
-            return $phase;
-        }
+        return f_square_wave($rate);
     }
+
 
     method noise ($color,%params) {
         require Audio::Aoede::Noise;
@@ -244,7 +219,7 @@ class Audio::Aoede {
             # FIXME: The envelopes can be cached
             return Audio::Aoede::Envelope::ADSR->new(
                 attack  => int(2 * $samples_per_period),
-                decay   => 200 * $samples_per_period,
+                decay   => int(150 * $samples_per_period),
                 sustain => 0.0,
                 release => int(5 * $samples_per_period),
             );
