@@ -27,16 +27,20 @@ class Audio::Aoede::Harmonics {
         if ($volumes) {
             @volumes = @$volumes;
             undef $volumes;
+            $self->_normalize;
         }
-        # Normalize the volume by running one full period
-        my $samples_per_period = $rate / $frequency;
-        my $period = $self->next_samples($samples_per_period,0);
-        $norm = $period->abs->max * 1.1; # steer clear of overflows
+    }
+
+
+    method set_frequency ($new) {
+        $frequency = $new;
+        return $self;
     }
 
 
     method set_volumes (@new) {
-        @volumes = new;
+        @volumes = @new;
+        $self->_normalize;
         return $self;
     }
 
@@ -50,6 +54,7 @@ class Audio::Aoede::Harmonics {
     method next_samples ($n_samples,$first) {
         use builtin qw( indexed );
         my $samples = zeroes($n_samples);
+        return unless $frequency;
       REGISTER_STOP:
         for my ($i,$volume) (indexed @volumes) {
             next REGISTER_STOP unless $volume;
@@ -58,6 +63,16 @@ class Audio::Aoede::Harmonics {
             $samples += $volume * $function->($n_samples,$overtone,$first);
         }
         return $samples/$norm;
+    }
+
+
+    method _normalize {
+        # Normalize the volume by running one full period
+        $norm = 1;
+        return unless $frequency;
+        my $samples_per_period = $rate / $frequency;
+        my $period = $self->next_samples($samples_per_period,0);
+        $norm = $period->abs->max * 1.1; # steer clear of overflows
     }
 }
 

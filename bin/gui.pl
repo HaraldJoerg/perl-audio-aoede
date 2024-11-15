@@ -15,6 +15,7 @@ use Audio::Aoede::Server;
 use Audio::Aoede::Note;
 use Audio::Aoede::Player::SoX;
 use Audio::Aoede::Source;
+use Audio::Aoede::Harmonics;
 use Audio::Aoede::UI::Envelope;
 use Audio::Aoede::UI::Oscilloscope;
 use Audio::Aoede::UI::Register;
@@ -24,7 +25,7 @@ use Audio::Aoede::Units qw( symbol );
 ######################################################################
 # Configuration hardwired right now
 my $tick = 1/60;  # in synch with my graphics card
-my $rate = 48000; # we have 800 samples per second
+my $rate = 48000; # we have ~800 samples per second
 my $bits = 16;    # Where should this be defined?
 my $channels = 1; # Where should this be defined?
 my $max_frequency = 22000;
@@ -36,6 +37,8 @@ my $aoede = Audio::Aoede->new(
 my $server = Audio::Aoede::Server->new(
     rate => $rate,
 );
+
+my $harmonic;
 
 my $main = Prima::MainWindow->create(
     text  => 'Sound from Scratch',
@@ -125,17 +128,18 @@ my $key = $main->insert(
     text => 'Play',
     hotkey => ' ',
     onMouseDown => sub {
-        $server->add_sources();
+        $server->add_sources($harmonic);
         $player->unmute;
         $player->update;
     },
     onMouseUp => sub {
         $player->update;
-        $player->mute;
+        $server->remove_source($harmonic);
     },
     onKeyDown => sub ($widget,$code,@rest) {
         return unless defined $code;
         if (chr $code  eq  ' ') {
+            $server->add_sources($harmonic);
             $player->unmute;
             $player->update;
         }
@@ -143,8 +147,8 @@ my $key = $main->insert(
     onKeyUp => sub ($widget,$code,@rest) {
         return unless defined $code;
         if (chr $code  eq  ' ') {
-            $player->mute;
             $player->update;
+            $server->remove_source($harmonic);
         }
     },
 );
@@ -195,30 +199,27 @@ $speaker =  $controls_widget->insert(
             $player->unmute;
             $player->update;
             reset_sources();
+            $server->add_sources($harmonic);
         }
         else {
             $widget->text(symbol("LOOP"));
             $player->update;
             $player->mute;
-            reset_sources();
+            $server->set_sources();
         }
     },
     pack => { side => 'left', fill => 'both' },
 );
 
 
-
-use Audio::Aoede::Harmonics;
-
 sub reset_sources {
     my $frequency = $tuner->value;
     if ($frequency) {
-        my $harmonic = Audio::Aoede::Harmonics->new(
+        $harmonic = Audio::Aoede::Harmonics->new(
             rate => $rate,
             frequency => $frequency,
             volumes => [$register->volumes],
         );
-        $server->set_sources($harmonic);
     }
     else {
         $server->set_sources();
@@ -226,8 +227,8 @@ sub reset_sources {
 }
 
 
-$register->set_trigger(\&reset_sources);
-$tuner->set_trigger(\&reset_sources);
+$register->set_trigger(sub { $harmonic->set_volumes($register->volumes) });
+$tuner->set_trigger(sub { $harmonic->set_frequency($tuner->value)} );
 
 my $o_window;
 sub toggle_oscilloscope {
