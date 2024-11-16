@@ -8,18 +8,19 @@ class Audio::Aoede::Server {
     field $rate     :param = 44100; # Because that's what my card does
     field $channels :param = 1;
 
-    field @sources;
+    field %sources;
     field $start_time;
     field $current_sample; # samples before this one have been processed
 
     use PDL;
-    use Time::HiRes qw(tv_interval gettimeofday);
+    use Scalar::Util qw( refaddr );
+    use Time::HiRes qw( tv_interval gettimeofday );
     use constant DEBUG => '';
 
     use Audio::Aoede::Link;
 
     ADJUST {
-        @sources = ();
+        %sources = ();
         $self->start;
     }
 
@@ -27,7 +28,7 @@ class Audio::Aoede::Server {
     method fetch_data($n_samples,$since = $current_sample) {
         my $sound = zeroes($n_samples);
         my $total_volume = 0;
-        for my $source (@sources) {
+        for my $source (values %sources) {
             my $volume = $source->volume;
             next unless $volume;
             $sound  += $volume *
@@ -48,25 +49,31 @@ class Audio::Aoede::Server {
 
 
     method add_sources (@new_sources) {
-        push @sources, map { $self->_link($_) } @new_sources;
+        @sources{ map { refadd($_) } @new_sources} =
+            map { $self->link($_) } @new_sources;
     }
 
 
     method set_sources (@new_sources) {
-        @sources = map { $self->_link($_) } @new_sources;
+        %sources = map { refaddr($_) => $self->_link($_) } @new_sources;
     }
 
 
     method remove_source ($old_source) {
-        @sources = grep { $_ != $old_source } @sources;
+        delete $sources{refaddr($old_source)};
     }
 
 
-    method replace_source ($old_source,$new_source) {
-        $self->remove_source($old_source);
-        $self->add_sources($new_source);
+    method start_sources (@list) {
+        my $current = $self->current_sample;
+        @sources{ map { refadd($_) } @list } =
+            map {
+                $_->set_link(Audio::Aoede::Link->new(offset => $current));
+            } @list;
     }
 
+    method stop_sources (@list) {
+    }
 
     method start {
         $start_time = [gettimeofday];

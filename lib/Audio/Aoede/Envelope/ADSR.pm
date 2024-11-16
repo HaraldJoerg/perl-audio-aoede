@@ -30,11 +30,49 @@ class Audio::Aoede::Envelope::ADSR {
             : undef;
     }
 
-    method apply ($samples) {
+    method apply ($samples,$offset,$stop) {
+        # Envelope: |<- A ->|<- D ->|<- S ... ->|<- R ->|
+        # Params:   |<- O ->|<- Samples  ^stop ->
+        #
+        # $offset can point into any region
+        #    this includes R if $offset > $stop
+        # $stop   can be in A, D or S and starts the
+        #         R regions
+        #         $stop <= $offset means pure R batch
+        #         ...which is a challenge because we lost
+        #            the level where R started
+        #            Maybe we should calculate the whole R phase after stop
+        #            and deliver it from $carry?  In this concept, $carry is
+        #            the part of R which didn't fit into $samples.  If a
+        #            carry is available, the source should skip the envelope
+        #            and directly proceed to other effects
         my $n_samples = $samples->dim(0);
-        my $start = 0;
+        my $start = $offset;
         if (defined $attack) {
             my $a_samples = $attack->dim(0);
+            my $a_rest = $a_samples - $offset;
+            if ($a_rest <= 0) {
+                # |<- attack ->|<- decay ->|<- sustain ... ->|<- release ->|
+                # |<-   offset   ->|<-   samples ...
+            }
+            else {
+                # |<- attack ->|<- decay ->|<- sustain ... ->|<- release ->|
+                # |<- O ->|<-   samples ...
+                my $a_start = $offset;
+                my $a_end   = $offset + $n_samples;
+                if ($a_end <= $a_samples) {
+                    # |<-         A         ->|<- D ->|<- S ... ->|<- R ->|
+                    # |<- O ->|<- samples ->|
+                    # This batch ends within the attack phase
+                    $samples *= $attack->slice([$offset,$a_end-1]);
+                }
+                else {
+                    # |<-     A      ->|<- D ->|<- S ... ->|<- R ->|
+                    # |<- O ->|<- samples ->|
+                    # Complete attack and prepare next phase
+                    $samples->slice([$offset,$a_samples-1]) *= $attack;
+                }
+            }
             my $rest_samples = $n_samples - $a_samples;
             if ($rest_samples < 0) {
                 $samples  *= $attack->slice([0,$n_samples-1]);
