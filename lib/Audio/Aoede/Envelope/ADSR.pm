@@ -12,32 +12,36 @@ class Audio::Aoede::Envelope::ADSR {
     field $decay   :param;
     field $sustain :param;
     field $release :param;
+    field $attack_samples;
+    field $decay_samples;
+    field $release_samples;
 
     # FIXME: We can get a concave decay with a formula like this:
     # $s = zeroes(10)->xlinvals((1-$sustain)**0.5,0)->pow(2)+$sustained
     ADJUST {
         # Convert numbers of samples to 1D PDL arrays
-        $attack  = $attack
-            ? (sequence($attack) + 1) / $attack
-            : undef;
-        $decay   = $decay
-            ? zeroes($decay)->xlinvals(1,$sustain)
-            : undef;
+        $attack_samples  = int $attack ?
+            ((sequence($attack) + 1) / $attack) :
+            undef;
+        $decay_samples   = int $decay ?
+            zeroes($decay)->xlinvals(1,$sustain//0) :
+            undef;
         # $release needs to be adjusted to the actual value
         # during apply()
-        $release = $release
-            ? zeroes($release)->xlinvals(1,0)
-            : undef;
+        $release_samples = $release ?
+            zeroes($release)->xlinvals(1,0) :
+            undef;
     }
 
     method apply ($samples,$offset,$stop) {
         # Envelope: |<- A ->|<- D ->|<- S ... ->|<- R ->|
-        # Params:   |<- O ->|<- Samples  ^stop ->
+        # Params:   |<- O ->|<- Samples  ^stop ->|
         #
-        # $offset can point into any region
-        #    this includes R if $offset > $stop
-        # $stop   can be in A, D or S and starts the
-        #         R regions
+        # $offset is the first byte of the envelope which needs to be
+        #         evaluated.  It can point into any region this includes R if
+        #         $offset > $stop
+        # $stop   is the start of the release phase in the incoming samples.
+        #         It can be in A, D or S.
         #         $stop <= $offset means pure R batch
         #         ...which is a challenge because we lost
         #            the level where R started
@@ -46,63 +50,84 @@ class Audio::Aoede::Envelope::ADSR {
         #            the part of R which didn't fit into $samples.  If a
         #            carry is available, the source should skip the envelope
         #            and directly proceed to other effects
-        my $n_samples = $samples->dim(0);
-        my $start = $offset;
-        if (defined $attack) {
-            my $a_samples = $attack->dim(0);
-            my $a_rest = $a_samples - $offset;
-            if ($a_rest <= 0) {
+        #         CAVEAT: In this version, $stop is just a boolean indicating
+        #         that the samples end with this batch.  This assumes that for
+        #         our "timed" sources there is a separate event for each stop.
+        # $first  is the first sample  of the incoming samples which still
+        #         needs processing.  So, samples 0 to ($first-1) are already
+        #         done, and $first can be updated after each phase.
+        # $last   is the last sample of this batch.
+        my $first = 0;
+        my $last  = $samples->dim(0)-1;
+        if ($attack) {
+            if ($offset > $attack) {
                 # |<- attack ->|<- decay ->|<- sustain ... ->|<- release ->|
-                # |<-   offset   ->|<-   samples ...
+                # Attack phase is already over, remaining offset goes to decay
+                $offset -= $attack;
             }
             else {
                 # |<- attack ->|<- decay ->|<- sustain ... ->|<- release ->|
                 # |<- O ->|<-   samples ...
-                my $a_start = $offset;
-                my $a_end   = $offset + $n_samples;
-                if ($a_end <= $a_samples) {
+                if ($attack > $offset + $last) {
                     # |<-         A         ->|<- D ->|<- S ... ->|<- R ->|
                     # |<- O ->|<- samples ->|
                     # This batch ends within the attack phase
-                    $samples *= $attack->slice([$offset,$a_end-1]);
+                    $samples *= $attack_samples->slice([$offset,$offset+$last]);
+                    return ($samples);
                 }
                 else {
                     # |<-     A      ->|<- D ->|<- S ... ->|<- R ->|
                     # |<- O ->|<- samples ->|
-                    # Complete attack and prepare next phase
-                    $samples->slice([$offset,$a_samples-1]) *= $attack;
+                    # Complete attack and prepare decay phase
+                    $samples->slice([$first,$attack-$offset-1]) *=
+                        $attack_samples->slice([$offset,$attack-1]);
+                    $first += ($attack - $offset);
+                    $offset = 0;
                 }
             }
-            my $rest_samples = $n_samples - $a_samples;
-            if ($rest_samples < 0) {
-                $samples  *= $attack->slice([0,$n_samples-1]);
+        }
+        if ($decay) {
+            if ($offset > $decay) {
+                # |<- decay ->|<- sustain ... ->|<- release ->|
+                # |<-     offset   ->|<-   samples ...
+                $offset -= $decay;
             }
             else {
-                $samples->slice([0,$a_samples-1]) *= $attack;
+                # |<- decay ->|<- sustain ... ->|<- release ->|
+                # |<- O ->|<-   samples ...
+                if ($decay > $offset + $last) {
+                    # |<-   D                  ->|<- S ... ->|<- R ->|
+                    # |<- O ->|<- samples ->| or
+                    # ....   samples      ->|
+                    # This batch ends within the decay phase
+                    $samples->slice([$first,$last]) *=
+                        $decay_samples->slice([$offset,$offset+$last-$first]);
+                    return ($samples);
+                }
+                else {
+                    # |<-     D      ->|<- S ... ->|<- R ->|
+                    # |<- O ->|<- samples ->| or
+                    # ....   samples      ->|
+                    # Complete decay and prepare sustain phase
+                    $samples->slice([$first,$decay-$offset-1]) *=
+                        $decay_samples->slice([$first+$offset,$decay-1]);
+                    $first += ($decay - $offset);
+                    $offset = 0;
+                }
             }
-            $n_samples  = $rest_samples;
-            $start      = $a_samples;
         }
-        if (defined $decay  &&  $n_samples > 0) {
-            my $d_samples = $decay->dim(0);
-            my $rest_samples = $n_samples - $d_samples;
-            if ($rest_samples < 0) {
-                $samples->slice([$start,$start + $n_samples-1])
-                    *= $decay->slice([0,$n_samples-1]);
-            }
-            else {
-                $samples->slice([$start,$start + $d_samples-1])
-                    *= $decay;
-            }
-            $n_samples = $rest_samples;
-            $start += $d_samples;
+        # We don't treat $stop yet, so it is just doing the sustain level
+        # for the rest of our batch.
+        $samples->slice([$first,$last]) *= $sustain;
+
+        if ($stop) {
+            my $last_value = samples->at($last);
+            my $carry = $release ? $release_samples * $last_value : undef;
+            return ($samples,$carry);
         }
-        if ($n_samples > 0) {
-            $samples->slice([$start,$start + $n_samples-1]) *= $sustain;
+        else {
+            return $samples;
         }
-        my $last  =  $samples->at(-1);
-        my $carry =  defined $release ? $release * $last : undef;
-        return ($samples,$carry);
     }
 }
 

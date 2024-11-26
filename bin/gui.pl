@@ -11,6 +11,7 @@ use FindBin;
 use lib "$FindBin::Bin/../lib";
 
 use Audio::Aoede;
+use Audio::Aoede::Envelope::ADSR;
 use Audio::Aoede::Server;
 use Audio::Aoede::Note;
 use Audio::Aoede::Player::SoX;
@@ -39,6 +40,7 @@ my $server = Audio::Aoede::Server->new(
 );
 
 my $harmonic;
+my $combined;
 
 my $main = Prima::MainWindow->create(
     text  => 'Sound from Scratch',
@@ -87,31 +89,6 @@ my $player = Audio::Aoede::Player::SoX->new(
 $player->connect($server);
 
 my $oscilloscope;
-my ($power,$play,$speaker);
-$power = $controls_widget->insert(
-    Button =>
-    checkable => 1,
-    text => symbol("POWER"),
-    onClick => sub ($widget) {
-        $play->checked(0);
-        $speaker->enabled(0);
-        if ($widget->checked) {
-            $widget->backColor(cl::LightRed);
-            $play->enabled(1);
-        }
-        else {
-            $widget->backColor(cl::White);
-            $play->enabled(0);
-            $play->text(symbol("PLAY"));
-            if ($speaker->checked) {
-                $speaker->notify('Click');
-            }
-            %timer_objects = ();
-        }
-    },
-    pack => { side => 'left', fill => 'both' },
-);
-
 
 my $register = Audio::Aoede::UI::Register->new();
 $register->insert_to($main);
@@ -119,7 +96,17 @@ $register->insert_to($main);
 my $tuner = Audio::Aoede::UI::Tuner->new();
 $tuner->insert_to($main);
 
-my $envelope_ui = Audio::Aoede::UI::Envelope->new();
+my $envelope = Audio::Aoede::Envelope::ADSR->new(
+    attack => 0,
+    decay  => 0,
+    sustain => 1,
+    release => 0
+);
+my $envelope_ui = Audio::Aoede::UI::Envelope->new(
+    trigger => sub (%adsr) {
+        $envelope = Audio::Aoede::Envelope::ADSR->new(%adsr);
+    }
+);
 $envelope_ui->insert_to($main);
 
 my $key = $main->insert(
@@ -128,67 +115,29 @@ my $key = $main->insert(
     text => 'Play',
     hotkey => ' ',
     onMouseDown => sub {
-        $server->add_sources($harmonic);
+        $server->add_sources($combined);
         $player->unmute;
-        $player->update;
     },
     onMouseUp => sub {
-        $player->update;
-        $server->remove_source($harmonic);
+        $server->remove_source($combined);
     },
     onKeyDown => sub ($widget,$code,@rest) {
         return unless defined $code;
         if (chr $code  eq  ' ') {
-            $server->add_sources($harmonic);
+            $server->add_sources($combined);
             $player->unmute;
-            $player->update;
         }
     },
     onKeyUp => sub ($widget,$code,@rest) {
         return unless defined $code;
         if (chr $code  eq  ' ') {
-            $player->update;
-            $server->remove_source($harmonic);
+            $server->remove_source($combined);
         }
     },
 );
 
-$play = $controls_widget->insert(
-    Button =>
-    checkable => 1,
-    enabled => 0,
-    text => symbol("PLAY"),
-    onClick => sub ($widget) {
-        if ($widget->checked) {
-            $widget->text(symbol("PAUSE"));
-            reset_sources();
-            $speaker->enabled(1);
-            register_timer($player);
-            $player->start;
-            if ($oscilloscope) {
-                register_timer($oscilloscope);
-            }
-        }
-        else {
-            $widget->backColor(cl::White);
-            $widget->text(symbol("PLAY"));
-            $server->set_sources();
-            if ($speaker->checked) {
-                $speaker->notify('Click');
-            }
-            $speaker->enabled(0);
-            $player->stop;
-            unregister_timer($player);
-            if ($oscilloscope) {
-                unregister_timer($oscilloscope);
-                $oscilloscope->update;
-            }
-        }
-    },
-    pack => { side => 'left', fill => 'both' },
-);
 
-$speaker =  $controls_widget->insert(
+my $speaker =  $controls_widget->insert(
     Button =>
     checkable => 1,
     enabled => 0,
@@ -212,6 +161,14 @@ $speaker =  $controls_widget->insert(
 );
 
 
+reset_sources();
+$speaker->enabled(1);
+register_timer($player);
+$player->start;
+if ($oscilloscope) {
+    register_timer($oscilloscope);
+}
+
 sub reset_sources {
     my $frequency = $tuner->value;
     if ($frequency) {
@@ -219,6 +176,12 @@ sub reset_sources {
             rate => $rate,
             frequency => $frequency,
             volumes => [$register->volumes],
+        );
+        $combined = Audio::Aoede::Source->new(
+            function => sub ($n_samples,$first) {
+                my $samples = $harmonic->next_samples($n_samples,$first);
+                my ($modified,$carry) = $envelope->apply($samples,$first,0);
+            }
         );
     }
     else {
@@ -228,7 +191,10 @@ sub reset_sources {
 
 
 $register->set_trigger(sub { $harmonic->set_volumes($register->volumes) });
-$tuner->set_trigger(sub { $harmonic->set_frequency($tuner->value)} );
+$tuner->set_trigger(sub {
+                        $harmonic  or  return;
+                        $harmonic->set_frequency($tuner->value // 0)
+                    } );
 
 my $o_window;
 sub toggle_oscilloscope {

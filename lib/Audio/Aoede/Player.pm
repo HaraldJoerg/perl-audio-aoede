@@ -5,8 +5,6 @@ use feature 'signatures';
 no warnings 'experimental';
 
 class Audio::Aoede::Player {
-    use Time::HiRes qw(tv_interval gettimeofday usleep);
-
 
     field $handle;
     field $source  :param  = undef;

@@ -31,8 +31,8 @@ class Audio::Aoede::Server {
         for my $source (values %sources) {
             my $volume = $source->volume;
             next unless $volume;
-            $sound  += $volume *
-                $source->next_samples($n_samples,$since);
+            my ($add,$carry) = $source->next_samples($n_samples,$since);
+            $sound  += $volume * $add;
             $total_volume += $volume;
         }
         if ($total_volume < 0.01) {
@@ -49,8 +49,8 @@ class Audio::Aoede::Server {
 
 
     method add_sources (@new_sources) {
-        @sources{ map { refadd($_) } @new_sources} =
-            map { $self->link($_) } @new_sources;
+        @sources{ map { refaddr($_) } @new_sources} =
+            map { $self->_link($_) } @new_sources;
     }
 
 

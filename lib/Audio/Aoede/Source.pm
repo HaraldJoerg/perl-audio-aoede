@@ -21,7 +21,12 @@ class Audio::Aoede::Source {
 
 
     method next_samples ($n_samples, $since) {
-        return $function->($n_samples,$since - $link->offset);
+        my $offset = $link->offset;
+        if ($offset > $since) {
+            $link->set_offset($since);
+            $offset = $since;
+        }
+        return $function->($n_samples,$since - $offset);
     }
 
 
