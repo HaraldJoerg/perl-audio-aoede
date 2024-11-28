@@ -14,7 +14,7 @@ class Audio::Aoede::Player::SoX
     my    %extra_output_properties =  ($^O =~ /MSWin32/)
         ? (type => 'waveaudio')
         : ();
-    my $amplitude = 2**15-1;
+    my $amplitude = 2**14-1;
 
     field $rate     :param;
     field $encoding = 'signed-integer';

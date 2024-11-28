@@ -145,6 +145,7 @@ my $speaker =  $controls_widget->insert(
     onClick => sub ($widget) {
         if ($widget->checked) {
             $widget->text(symbol("MUTE"));
+            $key->enabled(0);
             $player->unmute;
             $player->update;
             reset_sources();
@@ -152,6 +153,7 @@ my $speaker =  $controls_widget->insert(
         }
         else {
             $widget->text(symbol("LOOP"));
+            $key->enabled(1);
             $player->update;
             $player->mute;
             $server->set_sources();
@@ -180,7 +182,7 @@ sub reset_sources {
         $combined = Audio::Aoede::Source->new(
             function => sub ($n_samples,$first) {
                 my $samples = $harmonic->next_samples($n_samples,$first);
-                my ($modified,$carry) = $envelope->apply($samples,$first,0);
+                my ($modified,$carry) = $envelope->apply($samples,$first,1);
             }
         );
     }

@@ -58,7 +58,7 @@ class Audio::Aoede {
     method write (@voices) {
         my @samples = map { $_->samples } @voices;
         my $sum = sumover(pdl(@samples)->transpose);
-        my $max = max($sum);
+        my $max = max(abs $sum);
         if ($max > 1) {
             $sum /= $max;
         }
@@ -100,7 +100,7 @@ class Audio::Aoede {
             for my $track ($section->tracks) {
                 $voices[$i_track] //=
                     Audio::Aoede::Voice->new(
-                        function          => $self->sine_wave(),
+                        function          => $self->square_wave(),
                         envelope_function => $self->plucked_envelope(),
                     );
                 $voices[$i_track]->add_notes($track,$rate,$section->bpm);
@@ -220,8 +220,8 @@ class Audio::Aoede {
             return Audio::Aoede::Envelope::ADSR->new(
                 attack  => int(2 * $samples_per_period),
                 decay   => int(150 * $samples_per_period),
-                sustain => 0.0,
-                release => int(5 * $samples_per_period),
+                sustain => 0.5,
+                release => int(1000 * $samples_per_period),
             );
         }
     }

@@ -44,7 +44,7 @@ class Audio::Aoede::Voice {
                     my $add_samples = $function->($n_samples,$pitch);
                     my $add_carry;
                     my $envelope    = $envelope_function->($pitch);
-                    ($add_samples,$add_carry) = $envelope->apply($add_samples);
+                    ($add_samples,$add_carry) = $envelope->apply($add_samples,0);
                     $new_samples += $add_samples;
                     defined $add_carry  and  push @carry,$add_carry;
                 }

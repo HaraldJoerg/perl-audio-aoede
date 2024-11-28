@@ -8,54 +8,45 @@ no warnings 'experimental';
 class Audio::Aoede::Envelope::ADSR {
     use PDL;
 
-    field $attack  :param;
-    field $decay   :param;
-    field $sustain :param;
-    field $release :param;
+    field $attack  :param = 0;
+    field $decay   :param = 0;
+    field $sustain :param = 1;
+    field $release :param = 0;
     field $attack_samples;
     field $decay_samples;
     field $release_samples;
+    field $last_amplitude;
 
     # FIXME: We can get a concave decay with a formula like this:
-    # $s = zeroes(10)->xlinvals((1-$sustain)**0.5,0)->pow(2)+$sustained
+    # $s = zeroes(10)->xlinvals((1-$sustain)**0.5,0)->pow(2)+$sustain
     ADJUST {
         # Convert numbers of samples to 1D PDL arrays
         $attack_samples  = int $attack ?
             ((sequence($attack) + 1) / $attack) :
             undef;
         $decay_samples   = int $decay ?
-            zeroes($decay)->xlinvals(1,$sustain//0) :
+            zeroes($decay)->xlinvals(1,$sustain) :
             undef;
-        # $release needs to be adjusted to the actual value
+        # $release needs to be adjusted to the actual amplitude
         # during apply()
         $release_samples = $release ?
             zeroes($release)->xlinvals(1,0) :
             undef;
     }
 
-    method apply ($samples,$offset,$stop) {
+    method apply ($samples,$offset,$continue = 0) {
         # Envelope: |<- A ->|<- D ->|<- S ... ->|<- R ->|
-        # Params:   |<- O ->|<- Samples  ^stop ->|
+        # Params:   |<- O ->|<- Samples ->|<- continue?
         #
+        # $samples are the input samples.
         # $offset is the first byte of the envelope which needs to be
-        #         evaluated.  It can point into any region this includes R if
-        #         $offset > $stop
-        # $stop   is the start of the release phase in the incoming samples.
-        #         It can be in A, D or S.
-        #         $stop <= $offset means pure R batch
-        #         ...which is a challenge because we lost
-        #            the level where R started
-        #            Maybe we should calculate the whole R phase after stop
-        #            and deliver it from $carry?  In this concept, $carry is
-        #            the part of R which didn't fit into $samples.  If a
-        #            carry is available, the source should skip the envelope
-        #            and directly proceed to other effects
-        #         CAVEAT: In this version, $stop is just a boolean indicating
-        #         that the samples end with this batch.  This assumes that for
-        #         our "timed" sources there is a separate event for each stop.
+        #         evaluated.  It can point into the A, D and S regions.
+        # $continue is a boolean, a true value is indicating that the end
+        #         of this batch of sanples does not start the release phase.
+        #
         # $first  is the first sample  of the incoming samples which still
         #         needs processing.  So, samples 0 to ($first-1) are already
-        #         done, and $first can be updated after each phase.
+        #         done, and $first is updated after each phase.
         # $last   is the last sample of this batch.
         my $first = 0;
         my $last  = $samples->dim(0)-1;
@@ -109,8 +100,8 @@ class Audio::Aoede::Envelope::ADSR {
                     # |<- O ->|<- samples ->| or
                     # ....   samples      ->|
                     # Complete decay and prepare sustain phase
-                    $samples->slice([$first,$decay-$offset-1]) *=
-                        $decay_samples->slice([$first+$offset,$decay-1]);
+                    $samples->slice([$first,$first-$offset+$decay-1]) *=
+                        $decay_samples->slice([$offset,$decay-1]);
                     $first += ($decay - $offset);
                     $offset = 0;
                 }
@@ -120,14 +111,30 @@ class Audio::Aoede::Envelope::ADSR {
         # for the rest of our batch.
         $samples->slice([$first,$last]) *= $sustain;
 
-        if ($stop) {
-            my $last_value = samples->at($last);
-            my $carry = $release ? $release_samples * $last_value : undef;
-            return ($samples,$carry);
-        }
-        else {
+        if ($continue) {
             return $samples;
         }
+        else {
+            my $carry = $self->release($last+1);
+            return ($samples,$carry);
+        }
+    }
+
+
+    method release ($first) {
+        my $amplitude;
+        if ($first < $attack) {
+            $amplitude = $first / $attack;
+        }
+        elsif ($first + $attack < $decay) {
+            $amplitude  = 1.0
+                + ((-1.0 + $sustain) / $decay) * ($first - $attack);
+
+        }
+        else {
+            $amplitude = $sustain;
+        }
+        return $amplitude * $release_samples;
     }
 }
 
