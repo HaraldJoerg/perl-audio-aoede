@@ -38,7 +38,7 @@ class Audio::Aoede::Voice {
                 $new_samples = zeroes($n_samples);
             }
             my @pitches = $note->pitches;
-            my @carry;
+            my @carry = defined $carry ? ($carry) : ();
             if (@pitches) {
                 for my $pitch (@pitches) {
                     my $add_samples = $function->($n_samples,$pitch);
@@ -46,7 +46,13 @@ class Audio::Aoede::Voice {
                     my $envelope    = $envelope_function->($pitch);
                     ($add_samples,$add_carry) = $envelope->apply($add_samples,0);
                     $new_samples += $add_samples;
-                    defined $add_carry  and  push @carry,$add_carry;
+                    if (defined $add_carry) {
+                        my $n_carry = $add_carry->dim(0);
+                        push @carry,
+                            $function->($n_carry,$pitch,$n_samples) * $add_carry;
+                    }
+                    defined $add_carry  and  push @carry,
+                        $add_carry;
                 }
             }
             $samples = $samples->append($new_samples);

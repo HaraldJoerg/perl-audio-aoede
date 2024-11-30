@@ -86,7 +86,7 @@ class Audio::Aoede::Envelope::ADSR {
             else {
                 # |<- decay ->|<- sustain ... ->|<- release ->|
                 # |<- O ->|<-   samples ...
-                if ($decay > $offset + $last) {
+                if ($first + $decay > $offset + $last) {
                     # |<-   D                  ->|<- S ... ->|<- R ->|
                     # |<- O ->|<- samples ->| or
                     # ....   samples      ->|
@@ -122,6 +122,7 @@ class Audio::Aoede::Envelope::ADSR {
 
 
     method release ($first) {
+        return undef unless $release;
         my $amplitude;
         if ($first < $attack) {
             $amplitude = $first / $attack;

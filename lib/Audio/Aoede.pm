@@ -218,10 +218,10 @@ class Audio::Aoede {
             my $samples_per_period = $rate / $frequency;
             # FIXME: The envelopes can be cached
             return Audio::Aoede::Envelope::ADSR->new(
-                attack  => int(2 * $samples_per_period),
-                decay   => int(150 * $samples_per_period),
-                sustain => 0.5,
-                release => int(1000 * $samples_per_period),
+                attack  => int(5 * $samples_per_period),
+                decay   => int(200 * $samples_per_period),
+                sustain => 0.1,
+                release => int(5 * $samples_per_period),
             );
         }
     }

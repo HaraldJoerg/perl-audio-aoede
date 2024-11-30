@@ -183,6 +183,12 @@ sub reset_sources {
             function => sub ($n_samples,$first) {
                 my $samples = $harmonic->next_samples($n_samples,$first);
                 my ($modified,$carry) = $envelope->apply($samples,$first,1);
+            },
+            close_function => sub ($end) {
+                my $carry_amplitude = $envelope->release($end);
+                my $n_carry = $carry_amplitude->dim(0);
+                return $harmonic->next_samples($n_carry,$end)
+                    * $carry_amplitude;
             }
         );
     }

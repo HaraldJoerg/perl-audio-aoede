@@ -12,6 +12,7 @@ class Audio::Aoede::Source {
 
     field $volume   :param = 1;
     field $function :param;
+    field $close_function :param = sub {};
     field $link     = Audio::Aoede::Link->new;
 
 
