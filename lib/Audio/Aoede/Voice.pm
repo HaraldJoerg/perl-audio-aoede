@@ -58,7 +58,6 @@ class Audio::Aoede::Voice {
             $samples = $samples->append($new_samples);
             @carry  and  $carry = sumover pdl(@carry)->transpose;
         }
-        defined $carry  and  $samples = $samples->append($carry);
     }
 
     method add_samples($new) {
@@ -66,7 +65,12 @@ class Audio::Aoede::Voice {
     }
 
     method samples() {
-        return $samples;
+        if (defined $carry) {
+            return $samples->append($carry);
+        }
+        else {
+            return $samples;
+        }
     }
 }
 

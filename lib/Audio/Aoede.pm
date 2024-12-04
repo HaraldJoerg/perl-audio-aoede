@@ -9,6 +9,7 @@ no warnings 'experimental';
 class Audio::Aoede {
     use File::Temp;
     use PDL;
+    use List::Util();
 
     use Audio::Aoede::LPCM;
     use Audio::Aoede::Voice;
@@ -70,7 +71,7 @@ class Audio::Aoede {
             channels => $channels,
             out      => $out // '--default',
         );
-        $player->play_piddle($data);
+        $player->play_piddle($data,$out);
     }
 
 
@@ -88,23 +89,36 @@ class Audio::Aoede {
             channels => $channels,
             out      => $out // '--default',
         );
-        $player->play_piddle($data);
+        $player->play_piddle($data,$out);
     }
 
     method play_roll ($path) {
         require Audio::Aoede::MusicRoll;
         my $music_roll = Audio::Aoede::MusicRoll->from_file($path);
         my @voices;
+        my $n_samples = 0;
         for my $section ($music_roll->sections) {
             my $i_track = 0;
             for my $track ($section->tracks) {
-                $voices[$i_track] //=
+                if (! $voices[$i_track]) {
+                    $voices[$i_track] =
                     Audio::Aoede::Voice->new(
                         function          => $self->square_wave(),
                         envelope_function => $self->plucked_envelope(),
                     );
+                    $n_samples  and do {
+                        $voices[$i_track]->add_samples(zeroes($n_samples));
+                    };
+                }
                 $voices[$i_track]->add_notes($track,$rate,$section->bpm);
                 $i_track++;
+            }
+            $n_samples = List::Util::max(map { $_->samples->dim(0) } @voices);
+            for my $voice (@voices) {
+                my $this = $voice->samples->dim(0);
+                if ($this < $n_samples) {
+                    $voice->add_samples(zeroes($n_samples - $this));
+                }
             }
         }
         $self->write(@voices);
@@ -216,12 +230,12 @@ class Audio::Aoede {
             # We need to play around with this to find suitable values.
             # Maybe we could look it up somewhere?
             my $samples_per_period = $rate / $frequency;
-            # FIXME: The envelopes can be cached
+            # FIXME: The envelopes can be cached... or maybe not
             return Audio::Aoede::Envelope::ADSR->new(
-                attack  => int(5 * $samples_per_period),
-                decay   => int(200 * $samples_per_period),
-                sustain => 0.1,
-                release => int(5 * $samples_per_period),
+                attack  => int(2 * $samples_per_period),
+                decay   => int(00 * $samples_per_period),
+                sustain => 1,
+                release => int(40 * $samples_per_period),
             );
         }
     }

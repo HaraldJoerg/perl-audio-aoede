@@ -9,7 +9,7 @@ use lib "$FindBin::Bin/../lib";
 my $path = $ARGV[0] || "$FindBin::Bin/../eg/entertainer.mrt";
 use Audio::Aoede;
 
-my $aoede = Audio::Aoede->new;
+my $aoede = Audio::Aoede->new(out => $ARGV[1]);
 $aoede->play_roll($path);
 
 __END__
