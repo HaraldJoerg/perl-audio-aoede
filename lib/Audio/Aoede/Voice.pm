@@ -58,17 +58,40 @@ class Audio::Aoede::Voice {
         }
     }
 
+
     method add_samples($new) {
         $samples = $samples->append($new);
     }
 
-    method samples() {
+
+    method samples () {
+        return $samples;
+    }
+
+
+    method drain_carry ($n_samples) {
+        my $drain;
         if (defined $carry) {
-            return $samples->append($carry);
+            my $n_carry = $carry->dim(0);
+            if ($n_carry > $n_samples) {
+                $drain = $carry->slice([0,$n_samples-1]);
+                $carry = $carry->slice([$n_samples,$n_carry-1]);
+            }
+            else {
+                $drain = zeroes($n_samples);
+                $drain->slice([0,$n_carry-1]) = $carry;
+                undef $carry;
+            }
         }
         else {
-            return $samples;
+            $drain = zeroes($n_samples);
         }
+        $samples = $samples->append($drain);
+    }
+
+
+    method carry () {
+        return $carry;
     }
 }
 

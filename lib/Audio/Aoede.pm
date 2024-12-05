@@ -58,7 +58,10 @@ class Audio::Aoede {
     # FIXME: This only works for a single channel
     method write (@voices) {
         my @samples = map { $_->samples } @voices;
-        my $sum = sumover(pdl(@samples)->transpose);
+        my $samples = sumover(pdl(@samples)->transpose);
+        my @carry   = map { $_->carry // () } @voices;
+        my $carry = @carry ? sumover(pdl(@carry)->transpose) : pdl([]);
+        my $sum = $samples->append($carry);
         my $max = max(abs $sum);
         if ($max > 1) {
             $sum /= $max;
@@ -115,9 +118,9 @@ class Audio::Aoede {
             }
             $n_samples = List::Util::max(map { $_->samples->dim(0) } @voices);
             for my $voice (@voices) {
-                my $this = $voice->samples->dim(0);
-                if ($this < $n_samples) {
-                    $voice->add_samples(zeroes($n_samples - $this));
+                my $adjust = $n_samples - $voice->samples->dim(0);
+                if ($adjust > 0) {
+                    $voice->drain_carry($adjust);
                 }
             }
         }
@@ -233,9 +236,9 @@ class Audio::Aoede {
             # FIXME: The envelopes can be cached... or maybe not
             return Audio::Aoede::Envelope::ADSR->new(
                 attack  => int(2 * $samples_per_period),
-                decay   => int(00 * $samples_per_period),
-                sustain => 1,
-                release => int(40 * $samples_per_period),
+                decay   => int(400 * $samples_per_period),
+                sustain => 0.1,
+                release => int(50 * $samples_per_period),
             );
         }
     }

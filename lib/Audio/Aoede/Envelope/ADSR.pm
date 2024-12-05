@@ -25,7 +25,7 @@ class Audio::Aoede::Envelope::ADSR {
             ((sequence($attack) + 1) / $attack) :
             undef;
         $decay_samples   = int $decay ?
-            zeroes($decay)->xlinvals(1,$sustain) :
+            zeroes($decay)->xlinvals(($decay-1)/$decay,$sustain) :
             undef;
         # $release needs to be adjusted to the actual amplitude
         # at the time of releasing
@@ -34,14 +34,14 @@ class Audio::Aoede::Envelope::ADSR {
             undef;
     }
 
-    method apply ($samples,$offset,$continue = 0) {
+    method apply ($samples,$offset,$release = 1) {
         # Envelope: |<- A ->|<- D ->|<- S ... ->|<- R ->|
         # Params:   |<- O ->|<- Samples ->|<- continue?
         #
         # $samples are the input samples.
         # $offset is the first byte of the envelope which needs to be
         #         evaluated.  It can point into the A, D and S regions.
-        # $continue is a boolean, a true value is indicating that the end
+        # $release is a boolean, a true value is indicating that the end
         #         of this batch of sanples does not start the release phase.
         #
         # $first  is the first sample  of the incoming samples which still
@@ -50,6 +50,7 @@ class Audio::Aoede::Envelope::ADSR {
         # $last   is the last sample of this batch.
         my $first = 0;
         my $last  = $samples->dim(0)-1;
+        my $continue = 1;
         if ($attack) {
             if ($offset > $attack) {
                 # |<- attack ->|<- decay ->|<- sustain ... ->|<- release ->|
@@ -64,7 +65,7 @@ class Audio::Aoede::Envelope::ADSR {
                     # |<- O ->|<- samples ->|
                     # This batch ends within the attack phase
                     $samples *= $attack_samples->slice([$offset,$offset+$last]);
-                    return ($samples);
+                    $continue = 0;
                 }
                 else {
                     # |<-     A      ->|<- D ->|<- S ... ->|<- R ->|
@@ -77,7 +78,7 @@ class Audio::Aoede::Envelope::ADSR {
                 }
             }
         }
-        if ($decay) {
+        if ($continue && $decay) {
             if ($offset > $decay) {
                 # |<- decay ->|<- sustain ... ->|<- release ->|
                 # |<-     offset   ->|<-   samples ...
@@ -93,7 +94,7 @@ class Audio::Aoede::Envelope::ADSR {
                     # This batch ends within the decay phase
                     $samples->slice([$first,$last]) *=
                         $decay_samples->slice([$offset,$offset+$last-$first]);
-                    return ($samples);
+                    $continue = 0;
                 }
                 else {
                     # |<-     D      ->|<- S ... ->|<- R ->|
@@ -109,14 +110,16 @@ class Audio::Aoede::Envelope::ADSR {
         }
         # We don't treat $stop yet, so it is just doing the sustain level
         # for the rest of our batch.
-        $samples->slice([$first,$last]) *= $sustain;
-
         if ($continue) {
-            return $samples;
+            $samples->slice([$first,$last]) *= $sustain;
         }
-        else {
+
+        if ($release) {
             my $carry = $self->release($last+1);
             return ($samples,$carry);
+        }
+        else {
+            return $samples;
         }
     }
 
