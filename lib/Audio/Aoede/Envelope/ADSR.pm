@@ -28,9 +28,9 @@ class Audio::Aoede::Envelope::ADSR {
             zeroes($decay)->xlinvals(1,$sustain) :
             undef;
         # $release needs to be adjusted to the actual amplitude
-        # during apply()
+        # at the time of releasing
         $release_samples = $release ?
-            zeroes($release)->xlinvals(1,0) :
+            zeroes($release)->xlinvals(($release-1)/$release,0) :
             undef;
     }
 

@@ -51,8 +51,6 @@ class Audio::Aoede::Voice {
                         push @carry,
                             $function->($n_carry,$pitch,$n_samples) * $add_carry;
                     }
-                    defined $add_carry  and  push @carry,
-                        $add_carry;
                 }
             }
             $samples = $samples->append($new_samples);
