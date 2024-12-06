@@ -64,6 +64,7 @@ class Audio::Aoede::Note {
 
     sub from_spn ($spn) {
         $spn =~ $spn_pattern;
+        return unless $+{base};
         my $octave = $+{octave};
         my $number = $diatonic_notes{uc $+{base}}
             + $diatonic_modifiers{$+{modifier} // ''}

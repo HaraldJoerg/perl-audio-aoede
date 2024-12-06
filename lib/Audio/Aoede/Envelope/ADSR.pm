@@ -42,8 +42,7 @@ class Audio::Aoede::Envelope::ADSR {
         # $offset is the first byte of the envelope which needs to be
         #         evaluated.  It can point into the A, D and S regions.
         # $release is a boolean, a true value is indicating that the end
-        #         of this batch of sanples does not start the release phase.
-        #
+        #         of this batch of samples starts the release phase.
         # $first  is the first sample  of the incoming samples which still
         #         needs processing.  So, samples 0 to ($first-1) are already
         #         done, and $first is updated after each phase.
@@ -108,8 +107,6 @@ class Audio::Aoede::Envelope::ADSR {
                 }
             }
         }
-        # We don't treat $stop yet, so it is just doing the sustain level
-        # for the rest of our batch.
         if ($continue) {
             $samples->slice([$first,$last]) *= $sustain;
         }
