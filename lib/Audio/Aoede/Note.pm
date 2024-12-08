@@ -14,64 +14,56 @@ class Audio::Aoede::Note {
 
     use Audio::Aoede::Units qw( A440 HALFTONE );
 
-    field $duration :param = 0;
-    field $pitches  :param = [];
-    field $spn      :param = '';
-    field @pitches;
+    field $name       :reader :param = undef;
+    field $accidental :reader :param = '';
+    field $octave     :reader :param = undef;
 
-    ADJUST {
-        @pitches = @$pitches;
-        undef $pitches;
-        if (! @pitches) {
-            @pitches = map {
-                from_spn($_)
-            } split /\s*\+\s*/,$spn;
-        }
-    }
-
-    method duration () {
-        return $duration;
-    }
-
-
-    method pitches () {
-        return @pitches;
-    }
-
-    # FIXME: This is duplicate code, it also appears in the MusicRoll
-    # parser.  I should decide where I want that stuff, but do not
-    # want to right now.
-    my %diatonic_notes = (
+    my %diatonic_intervals = (
         C => 0,   D => 2,   E => 4,   F => 5,   G => 7,   A => 9,   B => 11,
     );
-    my %diatonic_modifiers = (
+    my %accidental = (
         ''   =>  0,
         'b'  => -1,   '♭' => -1,
         'bb' => -2,   '𝄫' => -2,
         '#'  =>  1,   '♯' =>  1,
         '##' =>  2,   '𝄪' =>  2,
     );
+    my %subscripts = map { chr(ord('₀') +$_) => $_ } (0..9);  # ₀₁₂₃₄₅₆₇₈₉
+    my $subscripts_pattern = '[' . join('',keys(%subscripts)) . ']';
+
+    ADJUST {
+        $accidental = $accidental{$accidental} // $accidental;
+    }
+
     my $spn_pattern =
         qr{
-              (?<base>[A-G])    # The base note name
-              (?<modifier>
-                  [b♭𝄫#♯𝄪] # up or down Unicode or ASCII
-              |
+              ^
+              (?<name>[A-G])    # The note name
+              (?<accidental>
                   bb | \#\#
+              |
+                  [b♭𝄫#♯𝄪] # up or down Unicode or ASCII
               )?
-              (?<octave>[\d]|-1) # We don't support the tenth octave
+              (?<octave>[\d₀₁₂₃₄₅₆₇₈₉]|-1|) # We don't support the tenth octave
+              $
       }ix;
 
-    sub from_spn ($spn) {
+    sub from_spn ($class,$spn) {
         $spn =~ $spn_pattern;
-        return unless $+{base};
-        my $octave = $+{octave};
-        my $number = $diatonic_notes{uc $+{base}}
-            + $diatonic_modifiers{$+{modifier} // ''}
-            + ($octave+1) * 12;
-        return A440 * (HALFTONE**($number-69));
+        $+{name}  or  croak("Error: No name for note '$spn' found.\n");
+        my $accidental = $accidental{$+{accidental} // 0};
+        my $octave = $subscripts{$+{octave}} // $+{octave};
+        return $class->new(
+            name       => $+{name},
+            accidental => $accidental // '',
+            octave     => $octave,
+        )
     }
 }
+        # my $number = $diatonic_intervals{uc $+{name}}
+        #     + $accidental{$+{accidental} // ''}
+        #     + ($octave+1) * 12;
+        # return A440 * (HALFTONE**($number-69));
 
 1;
 
@@ -81,13 +73,13 @@ __END__
 
 =head1 NAME
 
-Audio::Aoede::Note - a single piece of sound
+Audio::Aoede::Note - a single note
 
 =head1 DESCRIPTION
 
-Right now, this module is a container without function and should be
-considered for internal use only.  For a start, the name is a bit off
-because one object of this class can hold a complete chord.
+This class represents a single note.  Its constructor C<from_spn>
+parses notes in "Scientific Pitch Notation" and might be useful as a
+bridge to various CPAN modules which produce SPN notes.
 
 =head1 AUTHOR
 
