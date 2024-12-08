@@ -6,7 +6,7 @@ use Test::More;
 use Test::PDL;
 
 use Audio::Aoede;
-use Audio::Aoede::Note;
+use Audio::Aoede::Notes;
 use Audio::Aoede::Envelope::ADSR;
 use PDL;
 
@@ -19,7 +19,7 @@ my $release_samples = pdl(    -0.9,0.8,-0.7,0.6,-0.5,0.4,-0.3,0.2,-0.1,0);
 
 {
     my $track = [
-        Audio::Aoede::Note->new(pitches => [6], duration => 1),
+        Audio::Aoede::Notes->new(pitches => [6], duration => 1),
     ];
 
     my $release = 10;
@@ -42,8 +42,8 @@ my $release_samples = pdl(    -0.9,0.8,-0.7,0.6,-0.5,0.4,-0.3,0.2,-0.1,0);
 
 {
     my $track = [
-        Audio::Aoede::Note->new(pitches => [6], duration => 1),
-        Audio::Aoede::Note->new(pitches => [6], duration => 1),
+        Audio::Aoede::Notes->new(pitches => [6], duration => 1),
+        Audio::Aoede::Notes->new(pitches => [6], duration => 1),
     ];
 
     my $release = 10;
@@ -69,7 +69,7 @@ my $release_samples = pdl(    -0.9,0.8,-0.7,0.6,-0.5,0.4,-0.3,0.2,-0.1,0);
 {
     # Start release halfway in attack
     my $track = [
-        Audio::Aoede::Note->new(pitches => [6], duration => 1),
+        Audio::Aoede::Notes->new(pitches => [6], duration => 1),
     ];
     my $release = 10;
     my $voice =  Audio::Aoede::Voice->new(
@@ -94,7 +94,7 @@ my $release_samples = pdl(    -0.9,0.8,-0.7,0.6,-0.5,0.4,-0.3,0.2,-0.1,0);
 {
     # Start release halfway in decay
     my $track = [
-        Audio::Aoede::Note->new(pitches => [6], duration => 1),
+        Audio::Aoede::Notes->new(pitches => [6], duration => 1),
     ];
     my $release = 10;
     my $voice =  Audio::Aoede::Voice->new(

@@ -13,7 +13,6 @@ use lib "$FindBin::Bin/../lib";
 use Audio::Aoede;
 use Audio::Aoede::Envelope::ADSR;
 use Audio::Aoede::Server;
-use Audio::Aoede::Note;
 use Audio::Aoede::Player::SoX;
 use Audio::Aoede::Source;
 use Audio::Aoede::Harmonics;
@@ -25,7 +24,7 @@ use Audio::Aoede::Units qw( symbol );
 
 ######################################################################
 # Configuration hardwired right now
-my $tick = 1/60;  # in synch with my graphics card
+my $tick = 1/60;  # How far can we go?
 my $rate = 48000; # we have ~800 samples per second
 my $bits = 16;    # Where should this be defined?
 my $channels = 1; # Where should this be defined?

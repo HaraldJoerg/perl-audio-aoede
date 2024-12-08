@@ -66,6 +66,9 @@ class Audio::Aoede {
         if ($max > 1) {
             $sum /= $max;
         }
+        # now this is a crude hack
+        $sum *= (1+0.05*sin(20*sequence($sum->dim(0))/$rate))/2;
+        $sum = $self->apply_vibrato($sum,5,10);
         my $data = short($sum * $amplitude);
         require Audio::Aoede::Player::SoX;
         my $player = Audio::Aoede::Player::SoX->new(
@@ -128,11 +131,23 @@ class Audio::Aoede {
         return;
     }
 
+    method apply_vibrato ($samples,$frequency,$range) {
+        my $n_samples = $samples->dim(0);
+        my $timewarp = sequence($n_samples)
+            + $range * sin(sequence($n_samples) * 2 * PI * $frequency / $rate);
+        my $norm = ($n_samples-1) / $timewarp->at(-1);
+        $timewarp *= $norm;
+        my ($warped,$err) = interpolate($timewarp,
+                                        sequence($n_samples),$samples);
+        warn "We have errors: ", $err->sum  if $err->sum > 0;
+        return $warped;
+    }
+
     method play_notes (@notes) {
-        require Audio::Aoede::Note;
+        require Audio::Aoede::Notes;
         my $track = [];
         for my ($pitch,$duration) (@notes) {
-            push @$track, Audio::Aoede::Note->new(
+            push @$track, Audio::Aoede::Notes->new(
                 spn => $pitch, duration => $duration
             );
         }

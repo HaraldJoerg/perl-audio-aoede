@@ -13,7 +13,7 @@ use Carp;
 
 use Audio::Aoede::MusicRoll;
 use Audio::Aoede::MusicRoll::Section;
-use Audio::Aoede::Note;
+use Audio::Aoede::Notes;
 use Audio::Aoede::Units qw( A440 HALFTONE );
 
 my %diatonic_notes = (
@@ -183,13 +183,13 @@ sub parse_file ($path) {
                             $previous_octave = $octave;
                             my $pitch = A440 * (HALFTONE**($number-69));
                         } @notes;
-                        $note = Audio::Aoede::Note->new(
+                        $note = Audio::Aoede::Notes->new(
                             duration => $duration,
                             pitches  => \@pitches,
                         );
                     } else {
                         # No note => Treat it as a rest
-                        $note = Audio::Aoede::Note->new(
+                        $note = Audio::Aoede::Notes->new(
                             duration => $duration,
                         );
                     }

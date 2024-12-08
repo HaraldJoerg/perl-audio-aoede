@@ -9,7 +9,7 @@ no warnings 'experimental';
 class Audio::Aoede::Voice {
     use PDL;
 
-    use Audio::Aoede::Note;
+    use Audio::Aoede::Notes;
     use Audio::Aoede::Units qw( seconds_per_note );
     use Audio::Aoede::Envelope;
 
@@ -147,7 +147,7 @@ Work in progress!
 
 =item C<add_notes($notes_ref,$rate,$bpm)>
 
-Add an array of L<Audio::Aoede::Note> objects, given as a reference,
+Add an array of L<Audio::Aoede::Notes> objects, given as a reference,
 to the voice.  C<$rate> is the sample rate. C<$bpm> the current speed
 in (beats per minute).
 
@@ -167,5 +167,3 @@ Copyright 2024 Harald Jörg
 
 This module is free software; you may redistribute it and/or modify it
 under the same terms as Perl itself.
-
-
