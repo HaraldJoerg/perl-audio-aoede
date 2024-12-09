@@ -65,8 +65,51 @@ use Audio::Aoede::Note;
        'The note has the expected accidental (Unicode +2)');
 }
 
+# Explicit construction
+{
+    my $n = Audio::Aoede::Note->new(name => 'C');
+    is($n->accidental,0,
+   'Construction: Accidental is optional');
+}
+
+{
+    my $n = Audio::Aoede::Note->new(name => 'C', accidental => 'bb');
+    is($n->accidental,-2,
+   'Construction: ASCII accidental');
+}
+
+{
+    my $n = Audio::Aoede::Note->new(name => 'C', accidental => '𝄪');
+    is($n->accidental,2,
+   'Construction: Unicode accidental');
+}
+
+{
+    my $n = Audio::Aoede::Note->new(name => 'C', octave => 4);
+    is($n->octave,4,
+   'Construction: ASCII octave');
+}
+
+{
+    my $n = Audio::Aoede::Note->new(name => 'C', octave => '₅');
+    is($n->octave,5,
+   'Construction: Unicode octave');
+}
+
+# Methods
+{
+    my $n = Audio::Aoede::Note->new(name => 'C', octave => '4');
+    is($n->midi_number,60,
+   'MIDI number is correct');
+}
+
 # Error handling
 use Test::Fatal;
+{
+    like(exception { Audio::Aoede::Note->new() },qr(Required),
+       'Missing param on construction raises an exception');
+}
+
 {
     like(exception { Audio::Aoede::Note->from_spn('𝄪') },qr('𝄪'),
        'Unparsable SPN raises an exception showing the string');

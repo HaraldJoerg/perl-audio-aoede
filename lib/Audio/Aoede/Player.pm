@@ -1,3 +1,4 @@
+package Audio::Aoede::Player;
 use 5.032;
 
 use Feature::Compat::Class;

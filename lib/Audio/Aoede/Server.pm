@@ -1,4 +1,5 @@
 # ABSTRACT: Real-time sound
+package Audio::Aoede::Server;
 use 5.032;
 use Feature::Compat::Class;
 use feature "signatures";
@@ -187,7 +188,8 @@ good enough with a time tick of 20 ms (or 50 calls per second) which I
 organize with a L<Prima::Timer>, which is a timer I use for animations
 in my L<Prima> programs anyway.
 
-=head2 C<$s-E<gt>current_sample()
+
+=head2 C<$s-E<gt>current_sample()>
 
 Return the next sample to be provided.  Used by
 L<Audio::Aoede::UI::Oscilloscope> and other classes which want up to

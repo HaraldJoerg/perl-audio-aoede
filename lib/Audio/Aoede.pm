@@ -264,6 +264,8 @@ class Audio::Aoede {
 
 __END__
 
+=encoding utf8
+
 =head1 NAME
 
 Audio::Aoede - the entry point to Aoede sound

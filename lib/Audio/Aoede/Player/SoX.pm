@@ -1,3 +1,4 @@
+package Audio::Aoede::Player::SoX;
 use 5.032;
 
 use Feature::Compat::Class;
@@ -144,6 +145,8 @@ class Audio::Aoede::Player::SoX
 1; # for whatever reason :)
 
 __END__
+
+=encoding utf8
 
 =head1 NAME
 

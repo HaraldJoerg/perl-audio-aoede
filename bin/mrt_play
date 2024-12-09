@@ -13,6 +13,7 @@ my $aoede = Audio::Aoede->new(out => $ARGV[1]);
 $aoede->play_roll($path);
 
 __END__
+=encoding utf8
 
 =head1 NAME
 
@@ -45,7 +46,7 @@ lot of fun.  They are far from mature, and the author frequently
 refactors things, so absolutely I<nothing> is guaranteed.
 The software is not supposed to be installed in its current state.
 It can be cloned from its
-L<https://github.com/HaraldJoerg/perl-audio-aoede|GitHub repository>
+L<GitHub repository|https://github.com/HaraldJoerg/perl-audio-aoede>
 and the program be run from its C<bin> directory.
 
 I will I<try> to keep the

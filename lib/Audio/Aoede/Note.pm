@@ -9,34 +9,37 @@ no warnings 'experimental';
 
 use Feature::Compat::Class;
 
-class Audio::Aoede::Note {
-    use Carp;
+class Audio::Aoede::Note;
 
-    use Audio::Aoede::Units qw( A440 HALFTONE );
+use Carp;
 
-    field $name       :reader :param = undef;
-    field $accidental :reader :param = '';
-    field $octave     :reader :param = undef;
+use Audio::Aoede::Units qw( A440 HALFTONE );
 
-    my %diatonic_intervals = (
-        C => 0,   D => 2,   E => 4,   F => 5,   G => 7,   A => 9,   B => 11,
-    );
-    my %accidental = (
-        ''   =>  0,
-        'b'  => -1,   '♭' => -1,
-        'bb' => -2,   '𝄫' => -2,
-        '#'  =>  1,   '♯' =>  1,
-        '##' =>  2,   '𝄪' =>  2,
-    );
-    # my %subscripts = map { chr(ord('₀') +$_) => $_ } (0..9);  # ₀₁₂₃₄₅₆₇₈₉
-    my %subscripts = reverse builtin::indexed(qw (₀ ₁ ₂ ₃ ₄ ₅ ₆ ₇ ₈ ₉));
+field $name       :reader :param;
+field $accidental :reader :param = '';
+field $octave     :reader :param = undef;
 
-    ADJUST {
-        $accidental = $accidental{$accidental} // $accidental;
-    }
+my %diatonic_intervals = (
+    C => 0,   D => 2,   E => 4,   F => 5,   G => 7,   A => 9,   B => 11,
+);
+my %accidental = (
+    ''   =>  0,
+    'b'  => -1,   '♭' => -1,
+    'bb' => -2,   '𝄫' => -2,
+    '#'  =>  1,   '♯' =>  1,
+    '##' =>  2,   '𝄪' =>  2,
+);
+# my %subscripts = map { chr(ord('₀') +$_) => $_ } (0..9);  # ₀₁₂₃₄₅₆₇₈₉
+my %subscripts = reverse builtin::indexed(qw (₀ ₁ ₂ ₃ ₄ ₅ ₆ ₇ ₈ ₉));
 
-    my $spn_pattern =
-        qr{
+ADJUST {
+    $accidental = $accidental{$accidental}   // $accidental;
+    $octave     = $subscripts{$octave // ''} // $octave;
+}
+
+# Alternate (and maybe usually used) constructor
+sub from_spn ($class,$spn) {
+    state $spn_pattern = qr{
               ^
               (?<name>[A-G])    # The note name
               (?<accidental>
@@ -46,24 +49,24 @@ class Audio::Aoede::Note {
               )?
               (?<octave>[\d₀₁₂₃₄₅₆₇₈₉]|-1|) # We don't support the tenth octave
               $
-      }ix;
-
-    sub from_spn ($class,$spn) {
-        $spn =~ $spn_pattern;
-        $+{name}  or  croak("Error: No name for note '$spn' found.\n");
-        my $accidental = $accidental{$+{accidental} // 0};
-        my $octave = $subscripts{$+{octave}} // $+{octave};
-        return $class->new(
-            name       => $+{name},
-            accidental => $accidental // '',
-            octave     => $octave,
-        )
-    }
+                       }ix;
+    $spn =~ $spn_pattern;
+    $+{name}  or  croak("Error: No name for note '$spn' found.\n");
+    my $accidental = $accidental{$+{accidental} // 0};
+    my $octave = $subscripts{$+{octave}} // $+{octave};
+    return $class->new(
+        name       => $+{name},
+        accidental => $accidental // '',
+        octave     => $octave,
+    )
 }
-        # my $number = $diatonic_intervals{uc $+{name}}
-        #     + $accidental{$+{accidental} // ''}
-        #     + ($octave+1) * 12;
-        # return A440 * (HALFTONE**($number-69));
+
+method midi_number {
+    $octave  or  croak("Error: MIDI numbers need an octave");
+    return $diatonic_intervals{uc $name}
+        + $accidental
+        + ($octave+1) * 12;
+}
 
 1;
 

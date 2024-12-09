@@ -1,3 +1,4 @@
+package Audio::Aoede::LPCM; # make dzil and friends happy
 use 5.032;
 use Feature::Compat::Class;
 use feature 'signatures';

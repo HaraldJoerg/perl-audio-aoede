@@ -1,4 +1,5 @@
 # ABSTRACT: A graphical Oscilloscope for sound
+package Audio::Aoede::UI::Oscilloscope;
 use 5.032;
 use Feature::Compat::Class;
 use feature "signatures";
