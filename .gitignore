@@ -1,3 +1,7 @@
+# Specific to this dist: Ignore the build result
+/Audio-Aoede*
+
+# Standard stuff from various build tools
 !Build/
 .last_cover_stats
 /META.yml
