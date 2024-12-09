@@ -1,7 +1,7 @@
 # Abstract: A single (music) note
 package Audio::Aoede::Note;  # for tools which don't grok class
 
-use 5.032;
+use 5.036;
 use utf8; # for the unicode MUSICAL SYMBOL stuff
 use warnings;
 use feature 'signatures';
@@ -28,8 +28,8 @@ class Audio::Aoede::Note {
         '#'  =>  1,   '♯' =>  1,
         '##' =>  2,   '𝄪' =>  2,
     );
-    my %subscripts = map { chr(ord('₀') +$_) => $_ } (0..9);  # ₀₁₂₃₄₅₆₇₈₉
-    my $subscripts_pattern = '[' . join('',keys(%subscripts)) . ']';
+    # my %subscripts = map { chr(ord('₀') +$_) => $_ } (0..9);  # ₀₁₂₃₄₅₆₇₈₉
+    my %subscripts = reverse builtin::indexed(qw (₀ ₁ ₂ ₃ ₄ ₅ ₆ ₇ ₈ ₉));
 
     ADJUST {
         $accidental = $accidental{$accidental} // $accidental;

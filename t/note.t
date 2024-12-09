@@ -18,51 +18,58 @@ use Audio::Aoede::Note;
 
 # Octave given as Unicode subscript
 {
-    my $n = Audio::Aoede::Note->from_spn('A₄');
+    my $n = Audio::Aoede::Note->from_spn('B₄');
     is($n->octave,4,
        'The note has the expected octave (Unicode subscript).');
 }
 
 # Accidentals
 {
-    my $n = Audio::Aoede::Note->from_spn('Bbb');
+    my $n = Audio::Aoede::Note->from_spn('Cbb');
     is($n->accidental,-2,
        'The note has the expected accidental (ASCII -2)');
 }
 {
-    my $n = Audio::Aoede::Note->from_spn('B𝄫');
+    my $n = Audio::Aoede::Note->from_spn('D𝄫');
     is($n->accidental,-2,
        'The note has the expected accidental (Unicode -2)');
 }
 {
-    my $n = Audio::Aoede::Note->from_spn('Cb');
+    my $n = Audio::Aoede::Note->from_spn('Eb');
     is($n->accidental,-1,
        'The note has the expected accidental (ASCII -1)');
 }
 {
-    my $n = Audio::Aoede::Note->from_spn('C♭');
+    my $n = Audio::Aoede::Note->from_spn('F♭');
     is($n->accidental,-1,
        'The note has the expected accidental (Unicode -1)');
 }
 {
-    my $n = Audio::Aoede::Note->from_spn('D#');
+    my $n = Audio::Aoede::Note->from_spn('G#');
     is($n->accidental,1,
        'The note has the expected accidental (ASCII +1)');
 }
 {
-    my $n = Audio::Aoede::Note->from_spn('C♯');
+    my $n = Audio::Aoede::Note->from_spn('A♯');
     is($n->accidental,1,
-       'The note has the expected accidental (Unicode 1)');
+       'The note has the expected accidental (Unicode +1)');
 }
 {
-    my $n = Audio::Aoede::Note->from_spn('E##');
+    my $n = Audio::Aoede::Note->from_spn('B##');
     is($n->accidental,2,
        'The note has the expected accidental (ASCII +2)');
 }
 {
-    my $n = Audio::Aoede::Note->from_spn('E𝄪');
+    my $n = Audio::Aoede::Note->from_spn('C𝄪');
     is($n->accidental,2,
-       'The note has the expected accidental (Unicode 2)');
+       'The note has the expected accidental (Unicode +2)');
+}
+
+# Error handling
+use Test::Fatal;
+{
+    like(exception { Audio::Aoede::Note->from_spn('𝄪') },qr('𝄪'),
+       'Unparsable SPN raises an exception showing the string');
 }
 
 done_testing;
