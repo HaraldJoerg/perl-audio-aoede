@@ -152,9 +152,8 @@ class Audio::Aoede {
         return $warped;
     }
 
-    # FIXME: This method is *broken*.  It uses the old interface to
-    # the write method.  Also, it uses AA::Notes which I want to
-    # refactor to AA::Note at some point in time.  Added as TODO.
+    # FIXME: this uses AA::Notes which I want to refactor to AA::Note
+    # at some point in time.
     method play_notes (@notes) {
         require Audio::Aoede::Notes;
         my $track = [];
@@ -168,7 +167,10 @@ class Audio::Aoede {
             envelope_function => $self->plucked_envelope(),
         );
         $voice->add_notes($track,$rate);
-        $self->write($voice);
+        my $samples = $voice->carry
+            ? $voice->samples->append($voice->carry)
+            : $voice->samples;
+        $self->write($samples);
     }
 
 
