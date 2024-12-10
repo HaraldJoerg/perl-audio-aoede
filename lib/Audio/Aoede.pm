@@ -152,6 +152,9 @@ class Audio::Aoede {
         return $warped;
     }
 
+    # FIXME: This method is *broken*.  It uses the old interface to
+    # the write method.  Also, it uses AA::Notes which I want to
+    # refactor to AA::Note at some point in time.  Added as TODO.
     method play_notes (@notes) {
         require Audio::Aoede::Notes;
         my $track = [];
