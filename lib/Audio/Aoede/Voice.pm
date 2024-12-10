@@ -64,6 +64,11 @@ class Audio::Aoede::Voice {
     }
 
 
+    method n_samples () {
+        return $samples->dim(0);
+    }
+
+
     method samples () {
         return $samples;
     }

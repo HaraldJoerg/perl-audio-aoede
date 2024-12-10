@@ -56,20 +56,8 @@ class Audio::Aoede {
     }
 
     # FIXME: This only works for a single channel
-    method write (@voices) {
-        my @samples = map { $_->samples } @voices;
-        my $samples = sumover(pdl(@samples)->transpose);
-        my @carry   = map { $_->carry // () } @voices;
-        my $carry = @carry ? sumover(pdl(@carry)->transpose) : pdl([]);
-        my $sum = $samples->append($carry);
-        my $max = max(abs $sum);
-        if ($max > 1) {
-            $sum /= $max;
-        }
-        # now this is a crude hack
-        $sum *= (1+0.05*sin(20*sequence($sum->dim(0))/$rate))/2;
-        $sum = $self->apply_vibrato($sum,5,10);
-        my $data = short($sum * $amplitude);
+    method write ($samples) {
+        my $data = short($samples * $amplitude);
         require Audio::Aoede::Player::SoX;
         my $player = Audio::Aoede::Player::SoX->new(
             rate     => $rate,
@@ -119,15 +107,36 @@ class Audio::Aoede {
                 $voices[$i_track]->add_notes($track,$rate,$section->bpm);
                 $i_track++;
             }
-            $n_samples = List::Util::max(map { $_->samples->dim(0) } @voices);
+            $n_samples = List::Util::max(map { $_->n_samples } @voices);
             for my $voice (@voices) {
-                my $adjust = $n_samples - $voice->samples->dim(0);
+                my $adjust = $n_samples - $voice->n_samples;
+                # $adjust is small in case of rounding errors (8 1/8
+                # notes can have a different number of samples than
+                # one whole note).  It can also be large if the
+                # current section has less tracks than the previous
+                # one.  In that case, $adjust is the length of the
+                # current section and will most likely consume the
+                # carry completely.
                 if ($adjust > 0) {
                     $voice->drain_carry($adjust);
                 }
             }
         }
-        $self->write(@voices);
+
+        my @samples = map { $_->samples } @voices;
+        my $samples = sumover(pdl(@samples)->transpose);
+        my @carry   = map { $_->carry // () } @voices;
+        my $carry = @carry ? sumover(pdl(@carry)->transpose) : pdl([]);
+        my $sum = $samples->append($carry);
+        my $max = max(abs $sum);
+        if ($max > 1) {
+            $sum /= $max;
+        }
+        # now this is a crude hack
+        $sum *= (1+0.05*sin(20*sequence($sum->dim(0))/$rate))/2;
+        $sum = $self->apply_vibrato($sum,5,10);
+
+        $self->write($sum);
         return;
     }
 
