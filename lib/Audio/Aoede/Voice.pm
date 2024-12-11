@@ -36,8 +36,8 @@ class Audio::Aoede::Voice :isa(Audio::Aoede::Source) {
             else {
                 $new_samples = zeroes($n_samples);
             }
-            my @pitches = $note->pitches;
             my @carry = defined $carry ? ($carry) : ();
+            my @pitches = $note->pitches;
             if (@pitches) {
                 for my $pitch (@pitches) {
                     my $add_samples = $self->function->($n_samples,$pitch);

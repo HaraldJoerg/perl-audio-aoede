@@ -13,7 +13,7 @@ class Audio::Aoede::Source {
     field $volume   :param = 1;
     field $function :param :reader;
     field $link     = Audio::Aoede::Link->new;
-    field @effects;
+    field @effects = ();
 
 
     method volume {
@@ -27,7 +27,10 @@ class Audio::Aoede::Source {
             $link->set_offset($since);
             $offset = $since;
         }
-        return $function->($n_samples,$since - $offset);
+        my $samples = $function->($n_samples,$since - $offset);
+        for my $effect (@effects) {
+            $effect->apply($samples);
+        }
     }
 
 
