@@ -6,14 +6,13 @@ use Feature::Compat::Class;
 use feature 'signatures';
 no warnings 'experimental';
 
-class Audio::Aoede::Voice {
+class Audio::Aoede::Voice :isa(Audio::Aoede::Source) {
     use PDL;
 
     use Audio::Aoede::Notes;
     use Audio::Aoede::Units qw( seconds_per_note );
     use Audio::Aoede::Envelope;
 
-    field $function          :param;
     field $envelope_function :param = sub { Audio::Aoede::Envelope->new() };
     field $samples = pdl([]);
     field $carry;
@@ -41,7 +40,7 @@ class Audio::Aoede::Voice {
             my @carry = defined $carry ? ($carry) : ();
             if (@pitches) {
                 for my $pitch (@pitches) {
-                    my $add_samples = $function->($n_samples,$pitch);
+                    my $add_samples = $self->function->($n_samples,$pitch);
                     my $add_carry;
                     my $envelope    = $envelope_function->($pitch);
                     ($add_samples,$add_carry) = $envelope->apply($add_samples,0);
@@ -49,7 +48,7 @@ class Audio::Aoede::Voice {
                     if (defined $add_carry) {
                         my $n_carry = $add_carry->dim(0);
                         push @carry,
-                            $function->($n_carry,$pitch,$n_samples) * $add_carry;
+                            $self->function->($n_carry,$pitch,$n_samples) * $add_carry;
                     }
                 }
             }

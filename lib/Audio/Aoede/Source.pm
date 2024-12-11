@@ -11,9 +11,9 @@ class Audio::Aoede::Source {
     use Audio::Aoede::Link;
 
     field $volume   :param = 1;
-    field $function :param;
-    field $close_function :param = sub {};
+    field $function :param :reader;
     field $link     = Audio::Aoede::Link->new;
+    field @effects;
 
 
     method volume {
