@@ -1,3 +1,4 @@
+#!/usr/bin/env perl
 use 5.032;
 use strict;
 use feature "signatures";
@@ -183,12 +184,13 @@ sub reset_sources {
                 my $samples = $harmonic->next_samples($n_samples,$first);
                 my ($modified,$carry) = $envelope->apply($samples,$first,1);
             },
-            close_function => sub ($end) {
-                my $carry_amplitude = $envelope->release($end);
-                my $n_carry = $carry_amplitude->dim(0);
-                return $harmonic->next_samples($n_carry,$end)
-                    * $carry_amplitude;
-            }
+            effects => [$envelope],
+            # close_function => sub ($end) {
+            #     my $carry_amplitude = $envelope->release($end);
+            #     my $n_carry = $carry_amplitude->dim(0);
+            #     return $harmonic->next_samples($n_carry,$end)
+            #         * $carry_amplitude;
+            # }
         );
     }
     else {
