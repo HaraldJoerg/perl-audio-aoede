@@ -38,18 +38,50 @@ class Audio::Aoede::Voice :isa(Audio::Aoede::Source) {
             }
             my @carry = defined $carry ? ($carry) : ();
             my @pitches = $note->pitches;
+            use constant PI => atan2(0,-1);
             if (@pitches) {
                 for my $pitch (@pitches) {
-                    my $add_samples = $self->function->($n_samples,$pitch);
-                    my $add_carry;
-                    my $envelope    = $envelope_function->($pitch);
-                    ($add_samples,$add_carry) = $envelope->apply($add_samples,0);
+                    my $frequency = $pitch;
+                    my $rate = 44100; # FIXME FIXME FIXME
+                    my $samples_per_period = $rate / $frequency;
+                    my $note = Audio::Aoede::Source->new(
+                        function => sub ($n_samples,$first=0) {
+                            # FIXME: Where does the note get its
+                            # pitched function from?  It used to be an
+                            # attribute... but AA::Source takes
+                            # non-pitched functions!  I *want* it to
+                            # be an attribute of the track, which is
+                            # not yet an object.  Right now we *cheat*
+                            # and fallback to a sine function until we
+                            # are sure that we like the mechanism.
+                            my $samples_per_period = $rate / $frequency;
+                            my $norm = 2 * PI() / $samples_per_period;
+                            $first -= $samples_per_period * int $first/$samples_per_period;
+                            my $phase = (sequence($n_samples) + $first) * $norm;
+                            my $samples = sin($phase);
+                            return $samples;
+                        },
+                        effects => [
+                            Audio::Aoede::Envelope::ADSR->new(
+                                attack  => int(2 * $samples_per_period),
+                                decay   => int(400 * $samples_per_period),
+                                sustain => 0.1,
+                                release => int(50 * $samples_per_period)
+                            ),
+                        ]
+                    );
+                    my $add_samples = $note->next_samples($n_samples);
                     $new_samples += $add_samples;
-                    if (defined $add_carry) {
-                        my $n_carry = $add_carry->dim(0);
-                        push @carry,
-                            $self->function->($n_carry,$pitch,$n_samples) * $add_carry;
-                    }
+                    # my $add_samples = $self->function->($n_samples,$pitch);
+                    # my $add_carry;
+                    # my $envelope    = $envelope_function->($pitch);
+                    # ($add_samples,$add_carry) = $envelope->apply($add_samples,0);
+                    # $new_samples += $add_samples;
+                    # if (defined $add_carry) {
+                    #     my $n_carry = $add_carry->dim(0);
+                    #     push @carry,
+                    #         $self->function->($n_carry,$pitch,$n_samples) * $add_carry;
+                    # }
                 }
             }
             $samples = $samples->append($new_samples);

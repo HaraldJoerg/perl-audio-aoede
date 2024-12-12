@@ -13,24 +13,31 @@ class Audio::Aoede::Source {
     field $volume   :param = 1;
     field $function :param :reader;
     field $link     = Audio::Aoede::Link->new;
+    field $effects :param = [];
     field @effects = ();
 
+    ADJUST {
+        @effects = @$effects;
+        undef $effects;
+    }
 
     method volume {
         return $volume;
     }
 
 
-    method next_samples ($n_samples, $since) {
+    method next_samples ($n_samples, $since = 0) {
         my $offset = $link->offset;
         if ($offset > $since) {
             $link->set_offset($since);
             $offset = $since;
         }
         my $samples = $function->($n_samples,$since - $offset);
+        my $carry; # FIXME: We do that later
         for my $effect (@effects) {
-            $effect->apply($samples);
+            ($samples,$carry) = $effect->apply($samples,0);
         }
+        return $samples;
     }
 
 
