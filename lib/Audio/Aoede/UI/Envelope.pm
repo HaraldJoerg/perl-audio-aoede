@@ -1,4 +1,5 @@
 # ABSTRACT: An Aoede GUI for ADSR envelopes
+package Audio::Aoede::UI::Envelope;
 use 5.032;
 use Feature::Compat::Class;
 use feature "signatures";
@@ -6,6 +7,7 @@ no warnings "experimental";
 
 class Audio::Aoede::UI::Envelope {
     use Prima qw( InputLine );
+    field $trigger :param;
     field $widget;
     field %adsr = (
         attack => 0,
@@ -17,6 +19,9 @@ class Audio::Aoede::UI::Envelope {
     # This should eventually go into a role
     method insert_to ($parent) {
         $widget->owner($parent);
+        $widget->set(
+            onChange => sub { $trigger->(%adsr) },
+        )
     }
 
     ADJUST {
@@ -38,12 +43,18 @@ class Audio::Aoede::UI::Envelope {
                 pack => { side => 'left' },
                 alignment => ta::Right,
                 text => $adsr{lc $property},
-                onChange => sub ($widget) {
-                    $adsr{lc $property} = $widget->text;
+                onChange => sub ($p_widget) {
+                    $adsr{lc $property} = 0 + ($p_widget->text || 0);
+                    $widget->notify('Change');
                 },
             );
             $property_label->focusLink($property_input);
         }
+    }
+
+
+    method adsr () {
+        return %adsr;
     }
 }
 

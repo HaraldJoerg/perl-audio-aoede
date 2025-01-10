@@ -11,6 +11,11 @@ class Audio::Aoede::Link {
     field $next          :reader = $offset;
 
 
+    method set_offset ($new) {
+        $offset = $new;
+        return $self;
+    }
+
     method done ($n_samples) {
         $next += $n_samples;
     }

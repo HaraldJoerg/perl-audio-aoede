@@ -10,17 +10,12 @@ no warnings 'experimental';
 use Feature::Compat::Class;
 
 class Audio::Aoede::MusicRoll::Section {
-    field $bpm    :param = 120;
-    field $tracks :param;
+    field $bpm     :param :reader = 120;
+    field $tracks  :param;
+    field $dynamic :param :reader = undef;
 
-
-    method tracks {
+    method tracks () {
         return @$tracks;
-    }
-
-
-    method bpm {
-        return $bpm;
     }
 }
 

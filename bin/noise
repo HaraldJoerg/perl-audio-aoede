@@ -10,8 +10,6 @@ use Getopt::Long;
 use Audio::Aoede;
 use Audio::Aoede::Envelope::ADSR;
 use Audio::Aoede::Noise;
-use Audio::Aoede::Note;
-use Audio::Aoede::Voice;
 
 my $color = 'white';
 my $min_f = '20';
@@ -40,7 +38,10 @@ my $envelope = Audio::Aoede::Envelope::ADSR->new(
     sustain => 1,
     release => $rate/20);
 
-my ($samples,$carry) = $envelope->apply($noise->samples($n_samples));
+my $samples = $envelope->apply($noise->samples($n_samples),0);
+my $carry_amplitude = $envelope->release($n_samples);
+my $carry   = $carry_amplitude * $noise->samples($carry_amplitude->dim(0),
+                                                 $n_samples);
 
 $aoede->play_samples($samples->append($carry));
 

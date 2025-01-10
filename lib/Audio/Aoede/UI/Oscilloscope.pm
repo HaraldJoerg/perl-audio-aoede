@@ -1,4 +1,5 @@
 # ABSTRACT: A graphical Oscilloscope for sound
+package Audio::Aoede::UI::Oscilloscope;
 use 5.032;
 use Feature::Compat::Class;
 use feature "signatures";
@@ -45,7 +46,7 @@ class Audio::Aoede::UI::Oscilloscope {
     method update () {
         my $samples_per_period = $rate / $frequency;
 	# Fetch two periods and find a suitable starting point
-	my $data = $source->fetch_data(2 * $samples_per_period);
+	my $data = $source->fetch_data(int(2 * $samples_per_period + 0.5));
 	my $start = $data->slice([0,$samples_per_period-1])->minimum_ind;
 
         $plot->dataSets->{data}  =

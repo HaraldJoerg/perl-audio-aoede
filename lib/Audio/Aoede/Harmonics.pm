@@ -13,12 +13,13 @@ class Audio::Aoede::Harmonics {
     use Audio::Aoede::Source;
 
     field $frequency :param;
-    field $total_volume :reader(volume) = 1; # that's for the sum of it
+    field $volume    :reader = 1; # that's for the sum of it
     field @volumes = ();
     field $volumes  :param = undef;
     field $rate     :param;
     field $function = f_sine_wave($rate);
     field $link     = Audio::Aoede::Link->new;
+    field $norm     = 1;
 
     my $max_frequency = 22000;
 
@@ -26,17 +27,20 @@ class Audio::Aoede::Harmonics {
         if ($volumes) {
             @volumes = @$volumes;
             undef $volumes;
+            $self->_normalize;
         }
-        # Normalize the volume by running one full period
-        my $samples_per_period = $rate / $frequency;
-        my $period = $self->next_samples($samples_per_period,0);
-        my $max = $period->abs->max;
-        $total_volume = $max > 1 ? 1/$max : 1;
+    }
+
+
+    method set_frequency ($new) {
+        $frequency = $new;
+        return $self;
     }
 
 
     method set_volumes (@new) {
-        @volumes = new;
+        @volumes = @new;
+        $self->_normalize;
         return $self;
     }
 
@@ -50,6 +54,7 @@ class Audio::Aoede::Harmonics {
     method next_samples ($n_samples,$first) {
         use builtin qw( indexed );
         my $samples = zeroes($n_samples);
+        return unless $frequency;
       REGISTER_STOP:
         for my ($i,$volume) (indexed @volumes) {
             next REGISTER_STOP unless $volume;
@@ -57,7 +62,17 @@ class Audio::Aoede::Harmonics {
             last REGISTER_STOP if $overtone > $max_frequency;
             $samples += $volume * $function->($n_samples,$overtone,$first);
         }
-        return $total_volume * $samples;
+        return $samples/$norm;
+    }
+
+
+    method _normalize {
+        # Normalize the volume by running one full period
+        $norm = 1;
+        return unless $frequency;
+        my $samples_per_period = $rate / $frequency;
+        my $period = $self->next_samples($samples_per_period,0);
+        $norm = $period->abs->max * 1.1; # steer clear of overflows
     }
 }
 

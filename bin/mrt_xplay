@@ -1,0 +1,152 @@
+#!/usr/bin/env perl
+use 5.032;
+
+use feature 'signatures';
+no warnings 'experimental';
+
+# At the current state of maturity, this program is not intended to be
+# installed.  I run it directly from the checkout.
+use FindBin;
+use lib "$FindBin::Bin/../lib";
+
+use Getopt::Long;
+use List::Util 1.56 qw( mesh );
+use PDL;
+use builtin qw( indexed );
+
+use Audio::Aoede;
+use Audio::Aoede::Envelope::ADSR;
+use Audio::Aoede::Generator::Sine;
+use Audio::Aoede::MusicRoll;
+use Audio::Aoede::Timbre;
+use Audio::Aoede::Voice;
+
+my @voice_properties;
+my $init;
+my $out;
+GetOptions("init=s" => \$init,
+           "out=s"  => \$out,
+       );
+
+my $A = Audio::Aoede->new;
+
+my $rate = 44100;
+my $vibrato = $A->vibrato (width => 0.0, frequency => 3);
+my $tremolo = $A->tremolo (width => 0.03, frequency => 3);
+
+
+if ($init) {
+    @voice_properties = do "./$init";
+    if (! $voice_properties[0]) {
+        die "Failed to compile init file './$init': '$@'" if $@;
+        die "Failed to read init file './$init': '$!'"    if $!;
+        warn "Warning: Init file './$init' did not provide voice properties\n";
+    }
+}
+
+my $path = $ARGV[0] || "$FindBin::Bin/../eg/entertainer.mrt";
+
+my $music_roll = Audio::Aoede::MusicRoll->from_file($path);
+
+use Audio::Aoede::Effects::Percussive;
+my $timbre_perc = Audio::Aoede::Timbre->new(
+    effects => [
+        sub ($frequency) {
+            return Audio::Aoede::Envelope::ADSR->new(
+                attack  => 100,
+                decay   => $rate * 2400/$frequency,
+                sustain => 0.0,
+                release => $rate/2,# * 200/$frequency,
+            );
+        },
+        sub ($frequency) {
+            Audio::Aoede::Effects::Percussive->generate(
+                4*$frequency,5*$frequency,$rate/2
+            );
+        },
+    ],
+);
+
+
+my $timbre_sine = Audio::Aoede::Timbre->new();
+$timbre_sine->set_harmonics(1);
+$timbre_sine->add_effects(
+    sub ($frequency ) {
+        return Audio::Aoede::Envelope::ADSR->new(
+            attack  => 100,
+            decay   => 0,
+            sustain => 1.0,
+            release => 100,
+        );
+    }
+);
+
+use constant PI => atan2(0,-1);
+
+my @voices;
+my $n_samples = 0;
+for my $section ($music_roll->sections) {
+    for my ($i_track,$track) (indexed $section->tracks) {
+        $track->set_timbre($voice_properties[$i_track]{timbre} // $timbre_sine);
+        if (! $voices[$i_track]) {
+            $voices[$i_track] = Audio::Aoede::Voice->new(rate => $rate);
+            $n_samples  and do {
+                $voices[$i_track]->add_samples(zeroes($n_samples));
+            };
+        }
+        $voices[$i_track]->add_notes($track,$section->bpm,$section->dynamic);
+    }
+    $n_samples = List::Util::max(map { $_->n_samples } @voices);
+    for my $voice (@voices) {
+        my $adjust = $n_samples - $voice->n_samples;
+        # $adjust is small in case of rounding errors (8 1/8
+        # notes can have a different number of samples than
+        # one whole note).  It can also be large if the
+        # current section has less tracks than the previous
+        # one.  In that case, $adjust is the length of the
+        # current section and will most likely consume the
+        # carry completely.
+        if ($adjust > 0) {
+            $voice->drain_carry($adjust);
+        }
+    }
+}
+my @samples = map { $_->samples } @voices;
+my @carry   = map { $_->carry } @voices;
+
+my @channels;
+for my $channel (qw( left right )) {
+    my @channel;
+    my @all = mesh \@samples, \@carry,  \@voice_properties;
+    for my ($samples,$carry,$properties) (@all) {
+        last unless defined $samples;
+        my $volume = $properties->{channels}{$channel} // 1.0;
+        push @channel, $samples->append($carry) * $volume;
+    }
+    my $sound = sumover(pdl(@channel)->transpose);
+    my $max = max(abs $sound);
+    if ($max > 1) {
+        $sound /= $max;
+    }
+    push @channels,$sound;
+}
+my $stereo = (cat @channels)->transpose;
+
+my $amplitude = 2**15-1;
+my $bits = 16;
+my $channels = 2;
+sub play ($samples) {
+    my $data = short($samples * $amplitude);
+    require Audio::Aoede::Player::SoX;
+    my $player = Audio::Aoede::Player::SoX->new(
+        rate     => $rate,
+        bits     => $bits,
+        channels => $channels,
+        out      => $out // '--default',
+    );
+    $player->play_piddle($data,$out);
+}
+
+play($stereo);
+
+1;

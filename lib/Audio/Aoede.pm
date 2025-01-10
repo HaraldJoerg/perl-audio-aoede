@@ -9,6 +9,7 @@ no warnings 'experimental';
 class Audio::Aoede {
     use File::Temp;
     use PDL;
+    use List::Util();
 
     use Audio::Aoede::LPCM;
     use Audio::Aoede::Voice;
@@ -18,8 +19,6 @@ class Audio::Aoede {
     field $rate   :param = 44100;
     field $channels = 1;
     field $bits = 16;
-    field $samples;
-    field @voices;
     field $out    :param = undef;
 
     my $amplitude = 2**14;
@@ -55,14 +54,8 @@ class Audio::Aoede {
     }
 
     # FIXME: This only works for a single channel
-    method write (@voices) {
-        my @samples = map { $_->samples } @voices;
-        my $sum = sumover(pdl(@samples)->transpose);
-        my $max = max($sum);
-        if ($max > 1) {
-            $sum /= $max;
-        }
-        my $data = short($sum * $amplitude);
+    method write ($samples) {
+        my $data = short($samples * $amplitude);
         require Audio::Aoede::Player::SoX;
         my $player = Audio::Aoede::Player::SoX->new(
             rate     => $rate,
@@ -70,7 +63,7 @@ class Audio::Aoede {
             channels => $channels,
             out      => $out // '--default',
         );
-        $player->play_piddle($data);
+        $player->play_piddle($data,$out);
     }
 
 
@@ -88,43 +81,103 @@ class Audio::Aoede {
             channels => $channels,
             out      => $out // '--default',
         );
-        $player->play_piddle($data);
+        $player->play_piddle($data,$out);
     }
 
     method play_roll ($path) {
         require Audio::Aoede::MusicRoll;
         my $music_roll = Audio::Aoede::MusicRoll->from_file($path);
         my @voices;
+        my $n_samples = 0;
         for my $section ($music_roll->sections) {
             my $i_track = 0;
             for my $track ($section->tracks) {
-                $voices[$i_track] //=
-                    Audio::Aoede::Voice->new(
-                        function          => $self->sine_wave(),
-                        envelope_function => $self->plucked_envelope(),
-                    );
-                $voices[$i_track]->add_notes($track,$rate,$section->bpm);
+                if (! $voices[$i_track]) {
+                    $voices[$i_track] =
+                    Audio::Aoede::Voice->new(rate => $rate);
+                    $n_samples  and do {
+                        $voices[$i_track]->add_samples(zeroes($n_samples));
+                    };
+                }
+                $voices[$i_track]->add_notes($track,$section->bpm);
                 $i_track++;
             }
+            $n_samples = List::Util::max(map { $_->n_samples } @voices);
+            for my $voice (@voices) {
+                my $adjust = $n_samples - $voice->n_samples;
+                # $adjust is small in case of rounding errors (8 1/8
+                # notes can have a different number of samples than
+                # one whole note).  It can also be large if the
+                # current section has less tracks than the previous
+                # one.  In that case, $adjust is the length of the
+                # current section and will most likely consume the
+                # carry completely.
+                if ($adjust > 0) {
+                    $voice->drain_carry($adjust);
+                }
+            }
         }
-        $self->write(@voices);
+
+        my @samples = map { $_->samples } @voices;
+        my $samples = sumover(pdl(@samples)->transpose);
+        my @carry   = map { $_->carry // () } @voices;
+        my $carry = @carry ? sumover(pdl(@carry)->transpose) : pdl([]);
+        my $sum = $samples->append($carry);
+        my $max = max(abs $sum);
+        if ($max > 1) {
+            $sum /= $max;
+        }
+        # now this is a crude hack
+        $sum *= (1+0.05*sin(20*sequence($sum->dim(0))/$rate))/2;
+        $sum = $self->apply_vibrato($sum,5,10);
+
+        $self->write($sum);
         return;
     }
 
+    method tremolo (%options) {
+        require Audio::Aoede::Tremolo;
+        return Audio::Aoede::Tremolo->new(%options);
+    }
+
+    method vibrato (%options) {
+        require Audio::Aoede::Vibrato;
+        return Audio::Aoede::Vibrato->new(%options);
+    }
+
+    method apply_vibrato ($samples,$frequency,$range) {
+        my $n_samples = $samples->dim(0);
+        my $timewarp = sequence($n_samples)
+            + $range * sin(sequence($n_samples) * 2 * PI * $frequency / $rate);
+        my $norm = ($n_samples-1) / $timewarp->at(-1);
+        $timewarp *= $norm;
+        my ($warped,$err) = interpolate($timewarp,
+                                        sequence($n_samples),$samples);
+        warn "We have errors: ", $err->sum  if $err->sum > 0;
+        return $warped;
+    }
+
+    # FIXME+FIXME: It is currently unused and also broken since tracks
+    # are now objects and not array references.
     method play_notes (@notes) {
-        require Audio::Aoede::Note;
-        my $track = [];
-        for my ($pitch,$duration) (@notes) {
-            push @$track, Audio::Aoede::Note->new(
-                spn => $pitch, duration => $duration
-            );
-        }
-        my $voice =  Audio::Aoede::Voice->new(
-            function          => $self->square_wave(),
-            envelope_function => $self->plucked_envelope(),
-        );
-        $voice->add_notes($track,$rate);
-        $self->write($voice);
+        use Audio::Aoede::Tuning::Equal qw(note2pitch);
+        require Audio::Aoede::Notes; # FIXME!!!
+        require Audio::Aoede::Track;
+        require Audio::Aoede::Timbre::Vibraphone;
+        my $track = Audio::Aoede::Track->new
+            (timbre => Audio::Aoede::Timbre::Vibraphone::vibraphone($rate));
+        $track->add_notes(map {
+            my ($chord,$duration) = @$_;
+            my @pitches = map { note2pitch($_) } @$chord;
+            Audio::Aoede::Notes->new(
+                duration => $duration,
+                pitches =>  [map { note2pitch($_) } @$chord],
+            )
+        } @notes);
+        my $voice =  Audio::Aoede::Voice->new(rate => $rate);
+        $voice->add_notes($track);
+        my $samples = $voice->samples->append($voice->carry);
+        $self->write($samples);
     }
 
 
@@ -216,12 +269,12 @@ class Audio::Aoede {
             # We need to play around with this to find suitable values.
             # Maybe we could look it up somewhere?
             my $samples_per_period = $rate / $frequency;
-            # FIXME: The envelopes can be cached
+            # FIXME: The envelopes can be cached... or maybe not
             return Audio::Aoede::Envelope::ADSR->new(
                 attack  => int(2 * $samples_per_period),
-                decay   => int(150 * $samples_per_period),
-                sustain => 0.0,
-                release => int(5 * $samples_per_period),
+                decay   => int(400 * $samples_per_period),
+                sustain => 0.1,
+                release => int(50 * $samples_per_period),
             );
         }
     }
@@ -231,6 +284,8 @@ class Audio::Aoede {
 1;
 
 __END__
+
+=encoding utf8
 
 =head1 NAME
 

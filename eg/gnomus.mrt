@@ -1,0 +1,585 @@
+!set tracks=4; bpm=300
+!ff
+9/4:R
+9/4:R
+9/4:R
+1/8:Cb3+Cb4 Eb2+Eb3 D2+D3 Cb3+Cb4 Bb2+Bb3 D2+D3  11/8:Gb2+Gb3+Gb2+Gb3  1/8:R
+
+!set tracks=4; bpm=220
+!p
+9/4:R
+9/4:R
+9/4:R
+1/8:Cb3+Cb4 Eb2+Eb3 D2+D3 Cb3+Cb4 Bb2+Bb3 D2+D3   6/4:Gb2+Gb3
+
+# 7
+!set tracks=4; bpm=300
+!ff
+3/4:R
+3/4:R
+3/4:R
+1/8:Cb3+Cb4 Eb2+Eb3  Ebb2+Ebb3  Cb3+Cb4  Bb2+Bb3  Db2+Db3
+
+3/4:R
+3/4:R
+3/4:R
+1/4:Fb2+Fb3+Fb2+Fb3 1/8:Bb2+Bb3  C2+C3  1/4:Eb2+Eb3+Eb2+Eb3
+
+3/4:R
+3/4:R
+3/4:R
+1/8:Bb2+Bb3  Bb1+Bb2  1/4:D2+D3+D2+D3 1/8:Bb1+Bb2 R
+
+3/4:R
+3/4:R
+3/4:R
+1/4:Bb2+Bb3+Bb2+Bb3 Bb4+Bb5+Bb4+Bb5 R
+
+1/4:R
+1/4:R
+1/4:R
+1/4:R
+
+3/4:R
+3/4:R
+3/4:R
+1/8:Cb3+Cb4 Eb2+Eb3 D2+D3 Cb3+Cb4 Bb2+Bb3 D2+D3
+
+# 12
+3/4:R R
+3/4:R R
+3/4:R R
+11/8:Gb2+Gb3+Gb2+Gb3  1/8:R
+
+3/4:R
+3/4:R
+3/4:R
+1/8:Cb3+Cb4 Eb2+Eb3  Ebb2+Ebb3  Cb3+Cb4  Bb2+Bb3  Db2+Db3
+
+3/4:R
+3/4:R
+3/4:R
+1/4:Fb2+Fb3+Fb2+Fb3 1/8:Bb2+Bb3  C2+C3  1/4:Eb2+Eb3+Eb2+Eb3
+
+3/4:R
+3/4:R
+3/4:R
+1/8:Bb2+Bb3  Bb1+Bb2  1/4:D2+D3+D2+D3 1/8:Bb1+Bb2 R
+
+3/4:R
+3/4:R
+3/4:R
+1/4:Bb2+Bb3+Bb2+Bb3 Bb3+Bb4+Bb3+Bb4 Bb4+Bb5+Bb4+Bb5
+
+3/4:R
+3/4:R
+3/4:R
+3/4:R
+
+# 19
+!set tracks=5; bpm=300
+!fff
+1/4:Gb5+Bb5+F6     7/8:Gb5+Bb5+Eb6 3/8:R
+3/4:R R
+3/4:R R
+3/4:R R
+1/16:Eb1 3/16:Eb2  5/4:Eb2
+
+1/4:Eb5+Gb5+Db6  3/8:Eb5+Gb5+C6  1/8:R
+3/4:R
+3/4:R
+3/4:R
+3/4:A2
+
+1/4:Cb5+Eb5+Ab5  3/8:Cb5+Eb5+Gb5  1/8:R
+3/4:R
+3/4:R
+3/4:R
+3/4:Gb3
+
+1/4:Gb4+Bb4+F5  7/8:Gb4+Bb4+Eb5 3/8:R
+3/4:R R
+3/4:R R
+3/4:R R
+1/16:Eb1 3/16:Eb2  5/4:Eb2
+
+# 25
+1/4:Eb4+Gb4+Db5  3/8:Eb4+Gb4+C5  1/8:R
+3/4:R
+3/4:R
+3/4:R
+3/4:A2
+
+1/4:Cb4+Eb4+Ab4  3/8:Cb4+Eb4+Gb4 1/8:R
+3/4:R
+3/4:R
+3/4:R
+3/4:Gb3
+
+1/4:R   1/16:Cb4 3/16:Bb3  1/16:Cb3 3/16:Bb2
+3/4:R
+3/4:R
+3/4:R
+1/4:R   1/16:Cb3 3/16:Bb2  1/16:Cb2 3/16:Bb1
+
+3/4:R
+3/4:R
+3/4:R
+3/4:R
+3/4:R
+
+# Fermata...
+1/4:R
+1/4:R
+1/4:R
+1/4:R
+1/4:R
+
+# 19, repeated
+1/4:Gb5+Bb5+F6     7/8:Gb5+Bb5+Eb6 3/8:R
+3/4:R R
+3/4:R R
+3/4:R R
+1/16:Eb1 3/16:Eb2  5/4:Eb2
+
+1/4:Eb5+Gb5+Db6  3/8:Eb5+Gb5+C6  1/8:R
+3/4:R
+3/4:R
+3/4:R
+3/4:A2
+
+1/4:Cb5+Eb5+Ab5  3/8:Cb5+Eb5+Gb5  1/8:R
+3/4:R
+3/4:R
+3/4:R
+3/4:Gb3
+
+1/4:Gb4+Bb4+F5  7/8:Gb4+Bb4+Eb5 3/8:R
+3/4:R R
+3/4:R R
+3/4:R R
+1/16:Eb1 3/16:Eb2  5/4:Eb2
+
+# 25
+1/4:Eb4+Gb4+Db5  3/8:Eb4+Gb4+C5  1/8:R
+3/4:R
+3/4:R
+3/4:R
+3/4:A2
+
+1/4:Cb4+Eb4+Ab4  3/8:Cb4+Eb4+Gb4 1/8:R
+3/4:R
+3/4:R
+3/4:R
+3/4:Gb3
+
+1/4:R   1/16:Cb4 3/16:Bb3  1/16:Cb3 3/16:Bb2
+3/4:R
+3/4:R
+3/4:R
+1/4:R   1/16:Cb3 3/16:Bb2  1/16:Cb2 3/16:Bb1
+
+3/4:R
+3/4:R
+3/4:R
+3/4:R
+3/4:R
+
+# Fermata...
+1/4:R
+1/4:R
+1/4:R
+1/4:R
+1/4:R
+
+!set tracks=5;bpm=300
+!ff
+9/4:R
+9/4:R
+9/4:R
+1/8:Cb3+Cb4 Eb2+Eb3 D2+D3 Cb3+Cb4 Bb2+Bb3 D2+D3  1/2:Gb2+Gb3+Gb2+Gb3 1/16:Cb2+Cb3 5/16:Bb1+Bb2 5/8:R
+9/4:R
+
+# Fermata...
+1/4:R
+1/4:R
+1/4:R
+1/4:R
+1/4:R
+
+# 32
+3/4:R
+3/4:R
+3/4:R
+1/8:Cb3+Cb4 Eb2+Eb3  Ebb2+Ebb3  Cb3+Cb4  Bb2+Bb3  Db2+Db3
+3/4:R
+
+3/4:R
+3/4:R
+3/4:R
+1/4:Fb2+Fb3+Fb2+Fb3 1/8:Bb2+Bb3  C2+C3  1/4:Eb2+Eb3+Eb2+Eb3
+3/4:R
+
+3/4:R
+3/4:R
+3/4:R
+1/8:Bb2+Bb3  Bb1+Bb2  1/4:D2+D3+D2+D3 1/8:Bb1+Bb2 R
+3/4:R
+
+3/4:R
+3/4:R
+3/4:R
+1/4:R 1/16:Cb3+Cb4 3/16:Bb2+Bb3  1/16:Bb2+Cb3 3/16:Bb1+Bb2
+3/4:R
+
+# Fermata
+4/4:R
+4/4:R
+4/4:R
+4/4:Cb2+Cb3+Cb2+Cb3
+4/4:R
+
+3/4:R
+3/4:R
+3/4:R
+1/4:Bb1+Bb2 2/4:R
+3/4:R
+
+# Another fermata
+1/4:R
+1/4:R
+1/4:R
+1/4:R
+1/4:R
+
+# 38
+!set bpm=150
+!mf
+1/2:Eb3  A3+A4
+1:R
+1/2:Eb1+Eb2  A1+A2
+1:R
+1:R
+
+1/2:Eb3  Bb3+Bb4
+1:R
+1/2:Eb1+Eb2  Bb1+Bb2
+1:R
+1:R
+
+1/2:Eb3  1/4:Eb4+Eb5 Ebb4+Ebb5
+1:R
+1/2:Eb1+Eb2  1/4:C2+C3 Cb2+Cb3
+1:R
+1:R
+
+1/2:Fb4+Fb5 Eb4+Eb5
+1:R
+1/2:Db2+Db3 C2+C3
+1:R
+1:R
+
+1/4:Eb3      Eb4+Eb5  Ebb4+Ebb5  Gb4+Gb5
+4/4:R
+1/4:Eb1+Eb2  C2+C3    Cb2+Cb3    Eb2+Eb3
+4/4:R
+4/4:R
+
+1/4:F4+F5    Bb3+Bb4    1/2:F4+F5
+4/4:R
+1/4:D2+D3    Gb1+Gb2    1/2:D2+D3
+4/4:R
+4/4:R
+
+# 44
+1/4:Gb4+Gb5    F4+F5      Bb3+Bb4    F4+F5
+4/4:R
+1/4:Eb2+Eb3    Ebb2+Ebb3  Gb1+Gb2    Ebb2+Ebb3
+4/4:R
+4/4:R
+
+!set bpm=300
+!ff
+6/4:R
+6/4:R
+6/4:R
+1/8:Cb3+Cb4 Eb2+Eb3 D2+D3 Cb3+Cb4 Bb2+Bb3 D2+D3 1/4:Gb2+Gb3 2/4:R
+6/4:R
+
+# Fermata
+1/4:R
+1/4:R
+1/4:R
+1/4:R
+1/4:R
+
+!set bpm=150
+!mf
+1/2:Eb3  A3+A4
+1:R
+1/2:Eb1+Eb2+Eb3  A1+A2+A3+A4
+1:R
+1:R
+
+1/2:Eb3  Bb3+Bb4
+1:R
+1/2:Eb1+Eb2+Eb3  Bb1+Bb2+Bb3+Bb4
+1:R
+1:R
+
+# 49
+1/2:Eb3         1/4:F4+F5     Fb4+Fb5      1/2:Ab4+Ab5  Abb4+Abb5
+8/4:R
+1/2:Eb1+Eb2     1/4:Db2+Db3   C2+C3        1/2:Fb2+Fb3  Eb2+Eb3
+8/4:R
+8/4:R
+
+1/4:Eb3         F4+F5     Fb4+Fb5      Ab4+Ab5     Abb4+Abb5  Db4+Db5    1/2:Abb4+Abb5
+8/4:R
+1/4:Eb1+Eb2     Db2+Db3   C2+C3        Fb2+Fb3     Eb2+Eb3    Bbb1+Bbb2  1/2:Eb2+Eb3
+8/4:R
+8/4:R
+
+1/4:Ab4+Ab5    Abb4+Abb5  Db4+Db5     Abb4+Abb5
+1:R
+1/4:Fb2+Fb3    Eb2+Eb3    Bbb1+Bbb2   Eb2+Eb3
+1:R
+1:R
+
+# 54
+!set bpm=300
+3/4:R R
+3/4:R R
+3/4:R R
+1/8:Fb3+Fb4  Ab2+Ab3  Abb2+Abb3  Fb3+Fb4  Eb3+Eb4  Abb2+Abb3  1/4:Cb3+Cb4  R  R
+3/4:R R
+
+!set bpm=150
+!mf
+1/2:Ab3      D4+D5  Ab3      Eb4+Eb5
+4/4:R R
+1/2:Ab1+Ab2  D2+D3  Ab1+Ab2  Eb2+Eb3
+4/4:R R
+4/4:R R
+
+!set bpm=300
+!ff
+3/4:R R
+3/4:R R
+3/4:R R
+1/8:Cb4+Cb5  Eb3+Eb4  D3+D4  Cb4+Cb5  Bb3+Bb4  Eb3+Eb4  1/4:Gb3+Gb4 R R
+3/4:R R
+
+# 60
+!set bpm=150
+1/16:Eb4+Eb5 7/16:Eb5+Eb6          1/4:Ebb5+Ebb6  Gb5+Gb6
+4/4:R
+1/16:Eb3+Eb2 3/16:Eb1+Eb2  1/4:R   1/2:Eb3+Eb4
+4/4:R
+4/4:R
+
+1/4:F5+F6  Bb4+Bb5  1/2:Fb5+Fb6
+4/4:R
+1/2:Ebb3+Ebb4 Db3+Db4
+4/4:R
+4/4:R
+
+1/2:Eb5+Eb6  1/4:D5+D6 Ab4+Ab5
+4/4:R
+1/2:C3+C4    Cb3+Cb4
+4/4:R
+4/4:R
+
+1/4:Db5+Db6 Gb4+Gb5  1/2:C5+C6
+4/4:R
+1/2:Bb2+Bb3  Bbb2+Bbb3
+4/4:R
+4/4:R
+
+1/2:Cb5+Cb6  1/4:Bb4+Bb5  Eb4+Eb5
+4/4:R
+1/2:Ab2+Ab3  G2+G3
+4/4:R
+4/4:R
+
+1/2:Bbb4+Bbb5   1/4:Ab4+Ab5 D4+D5
+4/4:R
+1/2:Gb2+Gb3 F2+F3
+4/4:R
+4/4:R
+
+# 66
+1/16:Eb4+Eb5 7/16:Eb5+Eb6  1/2:Ebb5+Ebb6
+4/4:R
+1/16:Eb2+Eb3 7/16:Eb1+Eb2  1/4:Fb2+Fb3  Cb3+Cb4
+4/4:R
+4/4:R
+
+1/2:Db5+Db6 C5+C6
+4/4:R
+1/4:Bb2+Bb3  Eb2+Eb3  1/2:Bbb2+Bbb3
+4/4:R
+4/4:R
+
+1/2:Cb5+Cb6 Bb4+Bb5
+4/4:R
+1/2:Ab2+Ab3  1/4:G2+G3  Db2+Db3
+4/4:R
+4/4:R
+
+1/2:Bbb4+Bbb5 Ab4+Ab5
+4/4:R
+1/4:C2+C3 Gb2+Gb3   1/2:F2+F3
+4/4:R
+4/4:R
+
+1/2:Abb4+Abb5  Gb4+Gb5
+4/4:R
+1/4:Fb2+Fb3 Cb2+Cb3 1/2:Eb2+Eb3
+4/4:R
+4/4:R
+
+1/2:F4+F5 1/4:Fb4+Fb5 R
+4/4:R
+1/4:Ebb2+Ebb3 Bb1+Bb2 Db2+Db3 R
+4/4:R
+4/4:R
+
+# Poco a poco accellerando
+# 32
+!set bpm=150
+!p
+1/24:Eb2 F2 Eb2 F2 Eb2 F2 Eb2 F2 Eb2 F2 Eb2 F2 Eb2 F2 Eb2 F2 Eb2 F2 Eb2 F2 Eb2 F2 Eb2 F2 Eb2 F2 Eb2 F2 Eb2 F2
+3/4:R 1/2:R
+3/4:R 1/2:R
+3/4:R 1/2:R
+3/4:R 1/2:R
+
+!set bpm=165
+!mf
+1/24:Eb2 E2 F2 Gb2 G2 Ab2
+1/4:R
+1/4:R
+1/4:R
+1/4:R
+
+!set bpm=180
+!f
+1/24:A2 Bb2 A2 Bb2 A2 Bb2 A2 Bb2 A2 Bb2 A2 Bb2 A2 Bb2 A2 Bb2 A2 Bb2 A2 Bb2 A2 Bb2 A2 Bb2 A2 Bb2 A2 Bb2 A2 Bb2
+3/4:R 1/2:R
+3/4:R 1/2:R
+3/4:R 1/2:R
+3/4:R 1/2:R
+
+!set bpm=195
+!mf
+1/24:Bbb2 Ab2 Abb2 Gb2 F2 Fb2
+1/4:R
+1/4:R
+1/4:R
+1/4:R
+
+!set bpm=210
+!p
+1/24:Eb2 F2 Eb2 F2 Eb2 F2 Eb2 F2 Eb2 F2 Eb2 F2 Eb2 F2 Eb2 F2 Eb2 F2 Eb2 F2 Eb2 F2 Eb2 F2 Eb2 F2 Eb2 F2 Eb2 F2  1/24:Eb2 E2 F2 Gb2 G2 Ab2
+3/4:R R
+3/4:R R
+3/4:R R
+1/4:Gb5+Bb5+F6  1/2:Gb5+Bb5+Eb6  3/4:R
+
+# 78
+!set bpm=240
+1/24:A2 Bb2 A2 Bb2 A2 Bb2 A2 Bb2 A2 Bb2 A2 Bb2 A2 Bb2 A2 Bb2 A2 Bb2 A2 Bb2 A2 Bb2 A2 Bb2 A2 Bb2 A2 Bb2 A2 Bb2   1/24:Bbb2 Ab2 Abb2 Gb2 F2 Fb2
+3/4:R R
+3/4:R R
+3/4:R R
+1/4:Eb5+Gb5+Db6  3/8:Eb5+Gb5+C6  1/8:R  1/4:Cb5+Eb5+Ab5 3/8:Cb5+Eb5+Gb5  1/8:R
+
+!set bpm=255
+1/24:Eb2 F2 Eb2 F2 Eb2 F2 Eb2 F2 Eb2 F2 Eb2 F2 Eb2 F2 Eb2 F2 Eb2 F2 Eb2 F2 Eb2 F2 Eb2 F2 Eb2 F2 Eb2 F2 Eb2 F2  1/24:Eb2 E2 F2 Gb2 G2 Ab2
+3/4:R R
+3/4:R R
+3/4:R R
+1/4:Gb4+Bb4+F5  1/2:Gb4+Bb4+Eb5  3/4:R
+
+# 83 (second measure)
+!set bpm=270
+1/24:A2 Bb2 A2 Bb2 A2 Bb2 A2 Bb2 A2 Bb2 A2 Bb2 A2 Bb2 A2 Bb2 A2 Bb2 A2 Bb2 A2 Bb2 A2 Bb2 A2 Bb2 A2 Bb2 A2 Bb2   1/24:Bbb2 Ab2 Abb2 Gb2 F2 Fb2
+3/4:R R
+3/4:R R
+3/4:R R
+1/4:Eb4+Gb4+Db5  3/8:Eb4+Gb4+C5 1/8:R  1/4:Cb4+Eb4+Ab4 3/8:Cb4+Eb4+Gb4  1/8:R
+
+!set bpm=270
+!p
+1/24:Eb2 F2 Eb2 F2 Eb2 F2 Eb2 F2 Eb2 F2 Eb2 F2 Eb2 F2 Eb2 F2 Eb2 F2 Eb2 F2 Eb2 F2 Eb2 F2 Eb2 F2 Eb2 F2 Eb2 F2  1/24:Eb2 E2 F2 Gb2 G2 Ab2
+3/4:R R
+3/4:R R
+3/4:R R
+1/4:Gb3+Bb3+F4  3/8:Gb3+Bb3+Eb4  1/8:R 3/4:R
+
+# 87
+!set bpm=285
+!mf
+3/44:A2 Bb2 B2 C3 Db3 D3 Eb3 F3 Gb3 G3 Ab3
+3/4:R
+3/4:R
+3/4:R
+3/4:R
+
+1/24:A3 Bb3 A3 Bb3 A3 Bb3 A3 Bb3 A3 Bb3 A3 Bb3 A3 Bb3 A3 Bb3 A3 Bb3
+3/4:R
+3/4:R
+3/4:R
+1/4:Eb4+Gb4+Db5  3/8:Eb4+Gb4+C5 1/8:R
+
+1/24:Bbb3 Cb4 Bbb3 Cb4 Bbb3 Cb4 Bbb3 Cb4 Bbb3 Cb4 Bbb3 Cb4 Bbb3 Cb4 Bbb3 Cb4 Bbb3 Cb4
+3/4:R
+3/4:R
+3/4:R
+3/4:R
+
+!set bpm=300
+!f
+1/4:Ab3+Cb4+Eb4 3/8:Ab3+Cb4+Eb4+F4 1/8:R
+3/4:R
+3/4:R
+3/4:R
+1/4:Ab4+Cb5+Eb5 3/8:Ab4+Cb5+Eb5+F5 1/8:R
+
+3/4:R
+3/4:R
+3/4:R
+3/4:R
+3/4:R
+
+!set bpm=300
+!ff
+1/2:Ab3+Cb4+Eb4+Ab3+Cb4+Eb4  3/4:Ab3+Cb4+Eb4+F4+Ab3+Cb4+Eb4+F4
+1/2:R 3/4:R
+1/2:R 3/4:R
+1/2:Ab4+Cb5+Eb5+Ab4+Cb5+Eb5 3/4:Ab4+Cb5+Eb5+F5+Ab4+Cb5+Eb5+F5
+1/2:R 3/4:R
+
+# Yet another fermata
+3/4:R
+3/4:R
+3/4:R
+3/4:R
+3/4:R
+
+# 94
+!set bpm=360
+!ff
+1/4:R R Cb4
+3/4:R
+3/4:R
+3/4:R
+3/4:R
+
+1/8:Gb4 D4 Eb4 Cb4 Bb3 Db4   Eb4 D4 Cb4 Bb3 A3 Bb3   A3 F3 Eb3 D3 Eb3 Cb3   Bb2 A2 Cb3 Bb2 F2 Gb2    Eb2+Bb2+Gb3 1/8:R 1/4:R R
+3/4:R R R R R
+3/4:R R R R R
+3/4:R R R R R
+1/8:Bb4 F4 Gb4 A4 Bb4 Cb5    A4 Bb4 D5 Eb5 F5 Gb5    F5 D5 Eb5 F5 Gb5 A5    Bb5 Cb6 A5 Bb5 D6 Eb6    Eb5+Bb5+Gb6 1/8:R 1/4:R R
+3/4:R R R R R

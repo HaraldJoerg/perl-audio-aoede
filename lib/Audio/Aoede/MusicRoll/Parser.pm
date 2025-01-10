@@ -13,7 +13,8 @@ use Carp;
 
 use Audio::Aoede::MusicRoll;
 use Audio::Aoede::MusicRoll::Section;
-use Audio::Aoede::Note;
+use Audio::Aoede::Notes;
+use Audio::Aoede::Track;
 use Audio::Aoede::Units qw( A440 HALFTONE );
 
 my %diatonic_notes = (
@@ -55,6 +56,9 @@ my %key_map = (
     '𝅘𝅥' => 'bpm'
 );
 
+my @dynamic_markings = qw( fff ff f mf mp p pp ppp);
+my $dynamic_pattern = join '|',@dynamic_markings;
+
 my $note_pattern =
     qr{
           ^
@@ -89,9 +93,9 @@ my $note_pattern =
               (?<NOTE>
                   [A-G]        # The base note name
                   (?:
-                      [b♭𝄫#♯𝄪] # up or down Unicode or ASCII
-                  |
                       bb | \#\#
+                  |
+                      [b♭𝄫#♯𝄪] # up or down Unicode or ASCII
                   )?
                   (?:[\d]|-1)? # We don't support the tenth octave
               )
@@ -104,11 +108,10 @@ my $note_pattern =
           #              (?<repeat_end> :\|\| | 𝄇 )
   }ix;
 my $comment_pattern = qr{ ^ \# }x;
-my $command_pattern = qr{ ^ ! (?<command>\w+) \s+ (?<params>.*) }x;
+my $command_pattern = qr{ ^ ! (?<command>\w+) (\s+ (?<params>.*))? }x;
 
 sub parse_file ($path) {
-    my %default_params = (bpm => 120, tracks => 1);
-    my %params = %default_params;
+    my %params = (bpm => 120, tracks => 1, dynamic => 'mf');
     my @tracks;
     my $current_track = 0;
     my $music_roll = Audio::Aoede::MusicRoll->new();
@@ -118,24 +121,30 @@ sub parse_file ($path) {
         next LINE if ($line !~ /\S/);
         next LINE if ($line =~ /$comment_pattern/);
         $line =~ /$command_pattern/  and  do {
-            $+{command} eq 'set'  and  do {
-                # We have a new section, so close the old one
-                $current_track = 0;
-                if (@tracks) {
-                    $music_roll->add_section(
-                        Audio::Aoede::MusicRoll::Section->new(
-                            bpm => $params{bpm},
-                            tracks => [@tracks],
-                        )
-                    );
-                }
+            # We have a new section, so close the old one
+            $current_track = 0;
+            if (@tracks) {
+                $music_roll->add_section(
+                    Audio::Aoede::MusicRoll::Section->new(
+                        bpm => $params{bpm},
+                        tracks => [@tracks],
+                        dynamic => $params{dynamic},
+                    )
+                );
+            }
+            my $command = $+{command};
+            $command eq 'set'  and  do {
                 my @settings = split /\s*;\s*/,$+{params};
-                %params = (%default_params, map {
+                %params = (%params, map {
                     my ($key,$value) = split /\s*=\s*/,$_,2;
                     $key = $key_map{$key} // $key;
                     ($key,$value);
                 } @settings);
-                @tracks = (map { [] } (1..$params{tracks}));
+            };
+            @tracks = (map { Audio::Aoede::Track->new() }
+                       (1..$params{tracks}));
+            $command =~ m/$dynamic_pattern/  and  do {
+                $params{dynamic} = $command;
             };
             next LINE;
         };
@@ -173,7 +182,7 @@ sub parse_file ($path) {
                         my @notes = split /\+/,$+{notes};
                         my @pitches = map {
                             m/(?<base>[A-G])
-                              (?<modifier>[b♭#♯]?) #
+                              (?<modifier>[b♭#♯]*) #
                               (?<octave>[\d]|-1)?
                              /ix;
                             my $octave = $+{octave} // $previous_octave;
@@ -183,13 +192,13 @@ sub parse_file ($path) {
                             $previous_octave = $octave;
                             my $pitch = A440 * (HALFTONE**($number-69));
                         } @notes;
-                        $note = Audio::Aoede::Note->new(
+                        $note = Audio::Aoede::Notes->new(
                             duration => $duration,
                             pitches  => \@pitches,
                         );
                     } else {
                         # No note => Treat it as a rest
-                        $note = Audio::Aoede::Note->new(
+                        $note = Audio::Aoede::Notes->new(
                             duration => $duration,
                         );
                     }
@@ -197,7 +206,7 @@ sub parse_file ($path) {
             };
             $note // ();
         } @tokens;
-        push $tracks[$current_track]->@*,@notes;
+        $tracks[$current_track]->add_notes(@notes);
         $current_track += 1;
         $current_track %= $params{tracks};
     }
@@ -206,6 +215,7 @@ sub parse_file ($path) {
         Audio::Aoede::MusicRoll::Section->new(
             bpm => $params{bpm},
             tracks => [@tracks],
+            dynamic => $params{dynamic},
         )
     );
     return $music_roll;

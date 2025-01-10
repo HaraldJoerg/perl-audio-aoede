@@ -8,63 +8,134 @@ no warnings 'experimental';
 class Audio::Aoede::Envelope::ADSR {
     use PDL;
 
-    field $attack  :param;
-    field $decay   :param;
-    field $sustain :param;
-    field $release :param;
+    field $attack  :param = 0;
+    field $decay   :param = 0;
+    field $sustain :param = 1;
+    field $release :param = 0;
+    field $attack_samples;
+    field $decay_samples;
+    field $release_samples;
 
     # FIXME: We can get a concave decay with a formula like this:
-    # $s = zeroes(10)->xlinvals((1-$sustain)**0.5,0)->pow(2)+$sustained
+    # $s = zeroes(10)->xlinvals((1-$sustain)**0.5,0)->pow(2)+$sustain
     ADJUST {
         # Convert numbers of samples to 1D PDL arrays
-        $attack  = $attack
-            ? (sequence($attack) + 1) / $attack
-            : undef;
-        $decay   = $decay
-            ? zeroes($decay)->xlinvals(1,$sustain)
-            : undef;
-        # $release needs to be adjusted to the actual value
-        # during apply()
-        $release = $release
-            ? zeroes($release)->xlinvals(1,0)
-            : undef;
+        $attack_samples  = int $attack ?
+            ((sequence($attack) + 1) / $attack) :
+            undef;
+        $decay_samples   = int $decay ?
+            zeroes($decay)->xlinvals(($decay-1)/$decay,$sustain) :
+            undef;
+        # $release needs to be adjusted to the actual amplitude
+        # at the time of releasing
+        $release_samples = $release ?
+            zeroes($release)->xlinvals(($release-1)/$release,0) :
+            undef;
     }
 
-    method apply ($samples) {
-        my $n_samples = $samples->dim(0);
-        my $start = 0;
-        if (defined $attack) {
-            my $a_samples = $attack->dim(0);
-            my $rest_samples = $n_samples - $a_samples;
-            if ($rest_samples < 0) {
-                $samples  *= $attack->slice([0,$n_samples-1]);
+    method apply ($samples,$offset) {
+        # Envelope: |<- A ->|<- D ->|<- S ... ->|<- R ->|
+        # Params:   |<- O ->|<- Samples ->|<- continue?
+        #
+        # $samples are the input samples.
+        # $offset is the first sample of the envelope which needs to be
+        #         evaluated.  It can point into the A, D and S regions.
+        # $release is a boolean, a true value is indicating that the end
+        #         of this batch of samples starts the release phase.
+        # $first  is the first sample  of the incoming samples which still
+        #         needs processing.  So, samples 0 to ($first-1) are already
+        #         done, and $first is updated after each phase.
+        # $last   is the last sample of this batch.
+        my $first = 0;
+        my $last  = $samples->dim(0)-1;
+        my $continue = 1;
+        if ($attack) {
+            if ($offset > $attack) {
+                # |<- attack ->|<- decay ->|<- sustain ... ->|<- release ->|
+                # Attack phase is already over, remaining offset goes to decay
+                $offset -= $attack;
             }
             else {
-                $samples->slice([0,$a_samples-1]) *= $attack;
+                # |<- attack ->|<- decay ->|<- sustain ... ->|<- release ->|
+                # |<- O ->|<-   samples ...
+                if ($attack > $offset + $last) {
+                    # |<-         A         ->|<- D ->|<- S ... ->|<- R ->|
+                    # |<- O ->|<- samples ->|
+                    # This batch ends within the attack phase
+                    $samples *= $attack_samples->slice([$offset,$offset+$last]);
+                    $continue = 0;
+                }
+                else {
+                    # |<-     A      ->|<- D ->|<- S ... ->|<- R ->|
+                    # |<- O ->|<- samples ->|
+                    # Complete attack and prepare decay phase
+                    $samples->slice([$first,$attack-$offset-1]) *=
+                        $attack_samples->slice([$offset,$attack-1]);
+                    $first += ($attack - $offset);
+                    $offset = 0;
+                }
             }
-            $n_samples  = $rest_samples;
-            $start      = $a_samples;
         }
-        if (defined $decay  &&  $n_samples > 0) {
-            my $d_samples = $decay->dim(0);
-            my $rest_samples = $n_samples - $d_samples;
-            if ($rest_samples < 0) {
-                $samples->slice([$start,$start + $n_samples-1])
-                    *= $decay->slice([0,$n_samples-1]);
+        if ($continue && $decay) {
+            if ($offset > $decay) {
+                # |<- decay ->|<- sustain ... ->|<- release ->|
+                # |<-     offset   ->|<-   samples ...
+                $offset -= $decay;
             }
             else {
-                $samples->slice([$start,$start + $d_samples-1])
-                    *= $decay;
+                # |<- decay ->|<- sustain ... ->|<- release ->|
+                # |<- O ->|<-   samples ...
+                if ($first + $decay > $offset + $last) {
+                    # |<-   D                  ->|<- S ... ->|<- R ->|
+                    # |<- O ->|<- samples ->| or
+                    # ....   samples      ->|
+                    # This batch ends within the decay phase
+                    $samples->slice([$first,$last]) *=
+                        $decay_samples->slice([$offset,$offset+$last-$first]);
+                    $continue = 0;
+                }
+                else {
+                    # |<-     D      ->|<- S ... ->|<- R ->|
+                    # |<- O ->|<- samples ->| or
+                    # ....   samples      ->|
+                    # Complete decay and prepare sustain phase
+                    $samples->slice([$first,$first-$offset+$decay-1]) *=
+                        $decay_samples->slice([$offset,$decay-1]);
+                    $first += ($decay - $offset);
+                    $offset = 0;
+                }
             }
-            $n_samples = $rest_samples;
-            $start += $d_samples;
         }
-        if ($n_samples > 0) {
-            $samples->slice([$start,$start + $n_samples-1]) *= $sustain;
+        if ($continue) {
+            $samples->slice([$first,$last]) *= $sustain;
         }
-        my $last  =  $samples->at(-1);
-        my $carry =  defined $release ? $release * $last : undef;
-        return ($samples,$carry);
+
+        return $samples;
+    }
+
+
+    method release ($first) {
+        return pdl([]) unless $release;
+        my $amplitude;
+        if ($attack  and  $first < $attack) {
+            $amplitude = $first / $attack;
+        }
+        elsif ($decay  and  $first + $attack < $decay) {
+            $amplitude  = 1.0
+                + ((-1.0 + $sustain) / $decay) * ($first - $attack);
+        }
+        else {
+            $amplitude = $sustain;
+        }
+        return $amplitude * $release_samples;
+    }
+
+
+    method info {
+        return { A => $attack,
+                 D => $decay,
+                 S => $sustain,
+                 R => $release };
     }
 }
 

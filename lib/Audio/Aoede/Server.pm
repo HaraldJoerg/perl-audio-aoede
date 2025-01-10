@@ -1,4 +1,5 @@
 # ABSTRACT: Real-time sound
+package Audio::Aoede::Server;
 use 5.032;
 use Feature::Compat::Class;
 use feature "signatures";
@@ -8,31 +9,38 @@ class Audio::Aoede::Server {
     field $rate     :param = 44100; # Because that's what my card does
     field $channels :param = 1;
 
-    field @sources;
+    field %sources;
     field $start_time;
     field $current_sample; # samples before this one have been processed
 
     use PDL;
-    use Time::HiRes qw(tv_interval gettimeofday);
+    use Scalar::Util qw( refaddr );
+    use Time::HiRes qw( tv_interval gettimeofday );
     use constant DEBUG => '';
 
     use Audio::Aoede::Link;
 
     ADJUST {
-        @sources = ();
+        %sources = ();
         $self->start;
     }
 
     # Returns a double piddle of $n_samples samples
     method fetch_data($n_samples,$since = $current_sample) {
+        $n_samples = int ($n_samples + 0.5);
         my $sound = zeroes($n_samples);
         my $total_volume = 0;
-        for my $source (@sources) {
+        for my $source (values %sources) {
             my $volume = $source->volume;
             next unless $volume;
-            $sound  += $volume *
-                $source->next_samples($n_samples,$since);
-            $total_volume += $volume;
+            my $add = $source->next_samples($n_samples,$since);
+            if (defined $add) {
+                $sound  += $volume * $add;
+                $total_volume += $volume;
+            }
+            else {
+                $self->remove_source($source);
+            }
         }
         if ($total_volume < 0.01) {
             my $silence = zeroes($n_samples);
@@ -48,25 +56,31 @@ class Audio::Aoede::Server {
 
 
     method add_sources (@new_sources) {
-        push @sources, map { $self->_link($_) } @new_sources;
+        @sources{ map { refaddr($_) } @new_sources} =
+            map { $self->_link($_) } @new_sources;
     }
 
 
     method set_sources (@new_sources) {
-        @sources = map { $self->_link($_) } @new_sources;
+        %sources = map { refaddr($_) => $self->_link($_) } @new_sources;
     }
 
 
     method remove_source ($old_source) {
-        @sources = grep { $_ != $old_source } @sources;
+        delete $sources{refaddr($old_source)};
     }
 
 
-    method replace_source ($old_source,$new_source) {
-        $self->remove_source($old_source);
-        $self->add_sources($new_source);
+    method start_sources (@list) {
+        my $current = $self->current_sample;
+        @sources{ map { refadd($_) } @list } =
+            map {
+                $_->set_link(Audio::Aoede::Link->new(offset => $current));
+            } @list;
     }
 
+    method stop_sources (@list) {
+    }
 
     method start {
         $start_time = [gettimeofday];
@@ -180,7 +194,8 @@ good enough with a time tick of 20 ms (or 50 calls per second) which I
 organize with a L<Prima::Timer>, which is a timer I use for animations
 in my L<Prima> programs anyway.
 
-=head2 C<$s-E<gt>current_sample()
+
+=head2 C<$s-E<gt>current_sample()>
 
 Return the next sample to be provided.  Used by
 L<Audio::Aoede::UI::Oscilloscope> and other classes which want up to

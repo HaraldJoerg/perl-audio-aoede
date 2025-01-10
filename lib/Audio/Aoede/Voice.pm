@@ -9,58 +9,85 @@ no warnings 'experimental';
 class Audio::Aoede::Voice {
     use PDL;
 
-    use Audio::Aoede::Note;
-    use Audio::Aoede::Units qw( seconds_per_note );
-    use Audio::Aoede::Envelope;
+    use Audio::Aoede::Tone;
 
-    field $function          :param;
-    field $envelope_function :param = sub { Audio::Aoede::Envelope->new() };
     field $samples = pdl([]);
-    field $carry;
+    field $carry   = pdl([]);
+    field $rate :param;
 
+    my %dynamics = (
+        fff => 1.0,
+        ff  => 0.8,
+        f   => 0.6,
+        mf  => 0.5,
+        mp  => 0.4,
+        p   => 0.3,
+        pp  => 0.2,
+        ppp => 0.1
+    );
 
-    method add_notes($track,$rate,$bpm = 120) {
-        for my $note (@$track) {
-            my $n_samples =  $note->duration * seconds_per_note($bpm) * $rate;
-            my $new_samples;
-            if (defined $carry) {
-                if ($carry->dim(0) > $n_samples) {
-                    $new_samples = $carry->slice([0,$n_samples-1]);
-                    $carry = $carry->slice([$n_samples,$carry->dim(0)-1]);
-                }
-                else {
-                    $new_samples = sumover pdl(zeroes($n_samples),
-                                               $carry)->transpose;
-                    undef $carry;
-                }
+    method add_notes($track,$bpm = 120,$dynamic = 'mf') {
+        my $timbre = $track->timbre;
+        for my $note ($track->notes) {
+            my $tone = Audio::Aoede::Tone->new(
+                intensity => $dynamics{$dynamic} // 0.5,
+                duration => $note->duration,
+                timbre => $timbre,
+                pitches => [$note->pitches],
+                );
+            my ($tone_samples,$tone_carry) = $tone->sequence($rate,$bpm);
+            my $n_samples =  $tone_samples->dim(0);
+            if ($carry->dim(0) > $n_samples) {
+                $tone_samples += $carry->slice([0,$n_samples-1]);
+                $carry = pdl($carry->slice([$n_samples,$carry->dim(0)-1]),
+                             $tone_carry)->transpose->sumover;
             }
             else {
-                $new_samples = zeroes($n_samples);
+                $tone_samples = pdl($tone_samples,$carry)->transpose->sumover;
+                $carry = $tone_carry;
             }
-            my @pitches = $note->pitches;
-            my @carry;
-            if (@pitches) {
-                for my $pitch (@pitches) {
-                    my $add_samples = $function->($n_samples,$pitch);
-                    my $add_carry;
-                    my $envelope    = $envelope_function->($pitch);
-                    ($add_samples,$add_carry) = $envelope->apply($add_samples);
-                    $new_samples += $add_samples;
-                    defined $add_carry  and  push @carry,$add_carry;
-                }
-            }
-            $samples = $samples->append($new_samples);
-            @carry  and  $carry = sumover pdl(@carry)->transpose;
+            $samples = $samples->append($tone_samples);
         }
-        defined $carry  and  $samples = $samples->append($carry);
     }
 
+
+    # FIXME: This should drain $carry.  For the current use (adding a
+    # voice in a later section) this is not relevant.
     method add_samples($new) {
         $samples = $samples->append($new);
     }
 
-    method samples() {
-        return $samples;
+
+    method n_samples () {
+        return $samples->dim(0);
+    }
+
+
+    method samples () {
+        my $norm = $samples->abs->max;
+        return $norm ? $samples/$norm : $samples;
+    }
+
+
+    method drain_carry ($n_samples) {
+        my $drain;
+        my $n_carry = $carry->dim(0);
+        if ($n_carry > $n_samples) {
+            $drain = $carry->slice([0,$n_samples-1]);
+            $carry = $carry->slice([$n_samples,$n_carry-1]);
+        }
+        else {
+            $drain = zeroes($n_samples);
+            $drain->slice([0,$n_carry-1]) = $carry;
+            $carry = pdl([]);
+        }
+        $samples = $samples->append($drain);
+    }
+
+
+    method carry () {
+        my $norm = $samples->abs->max;
+        return $norm ? $carry/$norm : $carry;
     }
 }
 
@@ -114,11 +141,10 @@ Work in progress!
 
 =back
 
-=item C<add_notes($notes_ref,$rate,$bpm)>
+=item C<add_notes($notes_ref,$bpm)>
 
-Add an array of L<Audio::Aoede::Note> objects, given as a reference,
-to the voice.  C<$rate> is the sample rate. C<$bpm> the current speed
-in (beats per minute).
+Add an array of L<Audio::Aoede::Notes> objects, given as a reference,
+to the voice.  C<$bpm> the current speed in (beats per minute).
 
 =item C<samples>
 
@@ -136,5 +162,3 @@ Copyright 2024 Harald Jörg
 
 This module is free software; you may redistribute it and/or modify it
 under the same terms as Perl itself.
-
-

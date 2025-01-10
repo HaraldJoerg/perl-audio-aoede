@@ -1,3 +1,4 @@
+package Audio::Aoede::UI::Register;
 use 5.032;
 use Feature::Compat::Class;
 use feature "signatures";

@@ -9,10 +9,11 @@ use lib "$FindBin::Bin/../lib";
 my $path = $ARGV[0] || "$FindBin::Bin/../eg/entertainer.mrt";
 use Audio::Aoede;
 
-my $aoede = Audio::Aoede->new;
+my $aoede = Audio::Aoede->new(out => $ARGV[1]);
 $aoede->play_roll($path);
 
 __END__
+=encoding utf8
 
 =head1 NAME
 
@@ -20,12 +21,22 @@ mrt_play - play a music roll text file
 
 =head1 SYNOPSIS
 
-   $ mrt_play ../eg/entertainer.mrt
+   $ mrt_play ../eg/entertainer.mrt [output_path]
 
 =head1 DESCRIPTION
 
 This program plays a file in L<Audio::Aoede::MusicRoll::Format|MRT format>.
 The path to the file is given as a parameter.
+
+=head1 PARAMETERS
+
+The first parameter is the path to the MRT file to be played.
+
+The second parameter is optional: If not given, then the output is
+sent to the default audio device.  You can provide a path to an output
+file here, then the audio output will be sent to that file.  The file
+extension of the file must be recognizable by our backend (SoX) as an
+audio format.
 
 =head1 CAVEATS
 
@@ -35,7 +46,7 @@ lot of fun.  They are far from mature, and the author frequently
 refactors things, so absolutely I<nothing> is guaranteed.
 The software is not supposed to be installed in its current state.
 It can be cloned from its
-L<https://github.com/HaraldJoerg/perl-audio-aoede|GitHub repository>
+L<GitHub repository|https://github.com/HaraldJoerg/perl-audio-aoede>
 and the program be run from its C<bin> directory.
 
 I will I<try> to keep the

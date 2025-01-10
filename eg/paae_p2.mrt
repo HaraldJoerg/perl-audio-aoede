@@ -1,0 +1,78 @@
+!set bpm=90; tracks=2
+!p
+5/4:R
+1/4:F3 Eb3 Ab3 1/8:Bb3 Eb4 1/4:C4
+
+6/4:R
+1/8:Bb3 Eb4   1/4:C4 Ab3 Bb3 F3 Eb3
+
+1/4:Db4+F4+Ab4  Bb3+G4+Bb4  Eb4+Ab4+C5
+1/4:F3          Eb3         Ab3
+
+!mf
+1/4:G4+Bb4+Eb5   C5+Eb5+Ab5
+1/8:Bb3 Eb4      1/4:C4
+
+1/4:Bb4+Eb5+G5  G4+C5+Eb5  Ab4+C5+F5
+1/8:Bb3 Eb4   1/4:C4       Ab3
+
+!p
+1/4:Db5+F5+Bb5  F5+Ab5+C6  G5+Bb5+Eb6
+1/4:Bb3         F3         Eb3
+
+# 5
+5/4:R
+1/4:Eb3 F3 C3  1/8:Eb3 F3  1/4:Bb2
+
+6/4:R
+1/8:F3 G3  1/4:Eb3 Eb4 C4 1/8:Bb3 Ab3 1/4:Eb3
+
+1/4:G4+Bb4+Eb5+G5  F4+Ab4+Db5+F5  Ab4+C5+Eb5+Ab5  Bb4+Eb5+G5+Bb5  Db5+F5+Bb5+Db6
+1/4:Eb3            F3             C3              1/8:Eb3 F3      1/4:Bb2
+
+1/4:F5+Bb5+Db6+F6  G5+Bb5+Eb6+G6
+1/8:F3 G3          1/4:Eb3
+
+!mf
+1/4:C5+Eb5+G5+C6  Ab4+C5+Eb5+Ab5  Bb4+Db5+F5+Bb5
+1/4:Eb4           C4              1/8:Bb3 Ab3
+
+!p
+1/8:G4+Bb4+Eb5+G5 R
+1/8:Eb3 R
+
+# 9
+!set tracks=4
+3/4:Eb3                   1/2:Ab3
+1/4:F4       Eb4    Ab4   1/8:Bb4 Eb5 C5  R
+1/4:Db4      Bb     Eb4   1/4:G4  1/8:Ab4 R
+1/4:Ab3      G3     C4    3/8:Eb4         1/8:R
+
+!set tracks=3
+3/4:Eb2                           Ab1
+1/8:Bb4 Eb5  1/4:C5      Ab4      Bb4    F4      Eb4
+1/4:Db4+F4       Eb4+G4  C4+Eb4   D4+F4  Bb3+D4  G3+Bb3
+
+!set tracks=4
+1/4:Ab3  G3    C3   3/8:Eb4  1/8:R
+1/4:F4   Eb4   Ab4  1/8:Bb4 Eb5 C5 R
+2/4:Bb4+Bb5    3/4:Eb5+Eb6
+1/4:Db4  Bb3   Eb4  G4 1/8:Ab4 R
+
+1/4:Db4 Eb4
+1/8:Bb4 Eb5 1/4:C5
+2/4:G5+G6
+1/4:F4  G4
+
+!p
+1/4:C4
+1/4:Ab4
+1/4:Ab5+Ab6
+1/4:Eb4
+
+!pp
+1/4:D4  Bb3  1/8:G3 R
+1/4:Bb4 F4   1/8:Eb4 R
+5/8:Bb5+Bb6  1/8:R
+1/4:F4  D4   1/8:Bb3 R
+
