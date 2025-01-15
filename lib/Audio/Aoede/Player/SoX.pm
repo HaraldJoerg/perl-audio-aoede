@@ -86,10 +86,20 @@ class Audio::Aoede::Player::SoX
     }
 
 
-    method start {
+    method open_pipe () {
         $self->_set_handle(_open_pipe(\%input_properties,
                                       \%output_properties,
                                       $out));
+    }
+
+
+    method close_pipe () {
+        close $self->handle;
+    }
+
+
+    method start {
+        $self->open_pipe ();
         $self->done_to($self->source->current_sample);
     }
 

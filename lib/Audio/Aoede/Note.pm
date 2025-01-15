@@ -16,6 +16,7 @@ use Carp;
 field $name       :reader :param;
 field $accidental :reader :param = '';
 field $octave     :reader :param = undef;
+field $duration   :reader :param = undef;
 
 my %diatonic_intervals = (
     C => 0,   D => 2,   E => 4,   F => 5,   G => 7,   A => 9,   B => 11,
@@ -57,6 +58,7 @@ sub from_spn ($class,$spn) {
         octave     => $octave,
     )
 }
+
 
 method midi_number {
     $octave  or  croak("Error: MIDI numbers need an octave");

@@ -14,16 +14,12 @@ class Audio::Aoede::Recorder::SoX
     use Audio::Aoede::LPCM;
 
     my    $sox      = 'sox';
-    my    %extra_input_properties =  ($^O =~ /MSWin32/)
-        ? (type => 'waveaudio')
-        : ();
 
     field $rate     :param;
     field $encoding = 'signed-integer';
     field $bits     :param;
     field $channels :param;
     field $in       :param = '--default';
-    field %input_properties;
     field %output_properties;
 
     ADJUST {
@@ -34,16 +30,36 @@ class Audio::Aoede::Recorder::SoX
             bits           => $bits,
             channels       => $channels,
         );
-        %input_properties = (
-            channels => $channels,
-            %extra_input_properties,
-        );
     }
 
     sub set_sox_path ($class,$path) {
         $sox = $path;
     }
 
+    method read_file ($path) {
+        open (my $handle, '-|',
+              $sox,
+              '--no-show-progress',
+              $path,
+              _build_argument_list(%output_properties),
+              '-',
+          );
+        my $data;
+        my $offset = 0;
+        binmode $handle;
+        while (my $got = sysread $handle,$data,65536,$offset) {
+            die "Error reading sound: '$!'" unless defined $got;
+            last unless $got;
+            $offset += $got;
+        }
+        my $n_samples = length($data) * 8 / $bits / $channels;
+        my $sound = short zeroes (2,$n_samples);
+        my $ptr = $sound->get_dataref;
+        $$ptr = $data;
+        $sound->upd_data;
+        $handle->close;
+        my $channels = $sound->transpose;
+    }
     method record_mono ($time) {
         $channels = 1;
         open (my $handle,'-|',

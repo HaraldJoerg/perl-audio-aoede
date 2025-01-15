@@ -1,0 +1,145 @@
+#!/usr/bin/env perl
+use 5.032;
+use strict;
+use feature "signatures";
+no warnings "experimental";
+
+use Prima qw(Dialog::FileDialog);
+use Prima::Application name => 'Aoede Sound Viewer';
+use PDL::Graphics::Prima;
+use FindBin;
+use lib "$FindBin::Bin/../lib";
+use Time::HiRes qw( tv_interval gettimeofday );
+
+use Audio::Aoede;
+use Audio::Aoede::Player::SoX;
+use Audio::Aoede::Recorder::SoX;
+use Audio::Aoede::UI::Spectrum;
+
+######################################################################
+# Configuration hardwired right now
+my $tick = 1/50;  # How far can we go?
+my $rate = 48000; # we have ~800 samples per second
+my $bits = 16;    # Where should this be defined?
+my $channels = 2; # Where should this be defined?
+my $max_frequency = 22000;
+
+my $path = $ARGV[0] || "$FindBin::Bin/../eg/kaedish_gallery.ogg";
+
+my $A = Audio::Aoede->new(rate => $rate);
+my $recorder = Audio::Aoede::Recorder::SoX->new(
+    rate => $rate,
+    bits => 16,
+    channels => 2
+);
+
+my $sound;
+
+my $player = Audio::Aoede::Player::SoX->new(
+    rate => $rate,
+    bits => 16,
+    channels => 2
+);
+
+my $n_done;
+my $n_spectrum_samples = 2000;
+my $n_available;
+my ($left,$right);
+
+sub process_file {
+    my $open = Prima::Dialog::OpenDialog->new(
+        filter => [
+            ['Ogg vorbis sound files' => '*.ogg'],
+            ['All' => '*'],
+        ]
+    );
+    if ($open->execute) {
+        $sound = $recorder->read_file($open->fileName);
+    }
+    $n_available = $sound->dim(0);
+    $n_done = 0;
+    ($left,$right) = $sound->dog;
+
+    $player->open_pipe;
+    run_spectra();
+}
+
+
+my $main = Prima::MainWindow->create(
+    text  => 'Aoede Sound Viewer',
+    backColor => cl::White,
+    # Prima::Menu has a description of these formats
+    menuItems =>
+    [
+        ['~File' =>
+         [
+             [
+                 '~Open' => 'Ctrl+O', '^O',
+                 sub { process_file() },
+             ],
+             ['~Quit' => 'Ctrl+Q', '^Q',
+              sub { $::application->close } ],
+         ],
+     ],
+    ],
+);
+
+my $timer = $::application->insert(
+    Timer =>
+    timeout => 1000 * $tick,
+    onTick  => sub { tick() }
+);
+
+my $spectrum_w;
+$spectrum_w = $main->insert(
+    Widget =>
+    onClose => sub { undef $spectrum_w },
+    pack      => { side => 'top' },
+);
+my $spectrum = Audio::Aoede::UI::Spectrum->new(
+    parent => $spectrum_w,
+    channels => [qw( left right )],
+    rate => 6000, # Actually, that's twice the limit
+    size => [800,400],
+    pack      => { side => 'top', fill => 'both' },
+);
+
+my $start_time;
+sub run_spectra () {
+    $start_time = [gettimeofday];
+    $timer->start;
+}
+
+sub run_spectrum ($todo) {
+    my $last = $n_done + $todo - 1;
+    if ($last < $n_available) {
+        $player->send_piddle($sound->slice([$n_done,$last],[0,1])->transpose);
+        my $end = $last;
+        if ($todo > $n_spectrum_samples) {
+            $end = $n_done + $n_spectrum_samples - 1;
+            if ($end >= $n_available) {
+                $end = $n_available - 1;
+            }
+            $todo = $n_spectrum_samples;
+        }
+        my $c_left = $left->slice([$n_done,$end]);
+        my $s_left =  $A->spectrum($c_left,3000);
+        my $c_right = $right->slice([$n_done,$end]);
+        my $s_right = $A->spectrum($c_right,3000);
+        $spectrum->update(left => $s_left, right => $s_right);
+        $n_done = $last;
+    }
+    else {
+        $timer->stop;
+        $player->close_pipe;
+    }
+}
+
+my $done = 0;
+sub tick {
+    my $current = int (tv_interval($start_time) * $rate + 1.5);
+    my $todo = ($current - $n_done) & -2;
+    run_spectrum($todo);
+}
+
+Prima->run;

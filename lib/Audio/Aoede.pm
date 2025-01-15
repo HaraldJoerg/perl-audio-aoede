@@ -187,6 +187,7 @@ class Audio::Aoede {
         my $n_samples = $sound->dim(0);
         my $available = 0.5 * $n_samples;
         $limit *= $n_samples / $rate;
+        $limit = int ($limit + 0.5);
         if (! $limit  or  $limit > $available) {
             $limit = $available;
         }

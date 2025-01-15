@@ -13,6 +13,7 @@ use Carp;
 
 use Audio::Aoede::MusicRoll;
 use Audio::Aoede::MusicRoll::Section;
+use Audio::Aoede::Note;
 use Audio::Aoede::Notes;
 use Audio::Aoede::Track;
 use Audio::Aoede::Units qw( A440 HALFTONE );
@@ -180,6 +181,9 @@ sub parse_file ($path) {
                     $previous_duration = $duration;
                     if ($+{notes}) {
                         my @notes = split /\+/,$+{notes};
+                        my @n = map {
+                            Audio::Aoede::Note->from_spn($_)
+                        } @notes;
                         my @pitches = map {
                             m/(?<base>[A-G])
                               (?<modifier>[b♭#♯]*) #
