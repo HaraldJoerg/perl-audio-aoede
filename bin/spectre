@@ -14,6 +14,7 @@ use Time::HiRes qw( tv_interval gettimeofday );
 use Audio::Aoede;
 use Audio::Aoede::Player::SoX;
 use Audio::Aoede::Recorder::SoX;
+use Audio::Aoede::Units qw( symbol );
 use Audio::Aoede::UI::Spectrum;
 
 ######################################################################
@@ -23,17 +24,32 @@ my $rate = 48000; # we have ~800 samples per second
 my $bits = 16;    # Where should this be defined?
 my $channels = 2; # Where should this be defined?
 my $max_frequency = 22000;
+my $limit = 5000;
+my $n_spectrum_samples = 2000;
 
-my $path = $ARGV[0] || "$FindBin::Bin/../eg/kaedish_gallery.ogg";
+my $path;
+my $current_directory;
+
+my $sound;
+my $n_done;
+my $n_resume = 0;
+my $n_available;
+my ($left,$right);
+
+my ($key_play,$key_pause,$key_stop);
+my ($current_file_label,$pos_slider);
+
+
+my $timer;
+my $start_time;
 
 my $A = Audio::Aoede->new(rate => $rate);
+
 my $recorder = Audio::Aoede::Recorder::SoX->new(
     rate => $rate,
     bits => 16,
     channels => 2
 );
-
-my $sound;
 
 my $player = Audio::Aoede::Player::SoX->new(
     rate => $rate,
@@ -41,27 +57,30 @@ my $player = Audio::Aoede::Player::SoX->new(
     channels => 2
 );
 
-my $n_done;
-my $n_spectrum_samples = 2000;
-my $n_available;
-my ($left,$right);
 
 sub process_file {
     my $open = Prima::Dialog::OpenDialog->new(
         filter => [
             ['Ogg vorbis sound files' => '*.ogg'],
             ['All' => '*'],
-        ]
+        ],
+        directory => $current_directory || '.',
     );
     if ($open->execute) {
-        $sound = $recorder->read_file($open->fileName);
+        $path = $open->fileName;
+        $current_file_label->text("Playing: $path");
+        $current_file_label->repaint;
+        $current_directory = $open->directory;
+        $sound = $recorder->read_file($path);
+        $n_available = $sound->dim(0);
+        $n_done = 0;
+        $n_resume = 0;
+        ($left,$right) = $sound->dog;
+        my $sound_time = $left->dim(0) / $rate;
+        $pos_slider->max($sound_time);
+        $key_play->enabled(1);
     }
-    $n_available = $sound->dim(0);
-    $n_done = 0;
-    ($left,$right) = $sound->dog;
 
-    $player->open_pipe;
-    run_spectra();
 }
 
 
@@ -84,7 +103,81 @@ my $main = Prima::MainWindow->create(
     ],
 );
 
-my $timer = $::application->insert(
+$current_file_label = $main->insert(
+    Label =>
+    text => $path // '',
+    pack => { side => 'top' }
+);
+
+$pos_slider = $main->insert(
+    Slider =>
+    increment => 1,
+    min => 0,
+    max => 100,
+    size => [600,30],
+    autoTrack => 0,
+    ticks => [
+        { value => 60,
+          text => '1:00',
+      },
+        { value => 0,
+          text => '0:00',
+      }
+    ],
+    pack => { side => 'top' }
+);
+
+my $keys = $main->insert(
+    Widget =>
+    pack => { side => 'top' }
+);
+
+$key_play = $keys->insert(
+    Button =>
+    pack => { side => 'left' },
+    text => symbol('PLAY'),
+    enabled => 0,
+    onClick => sub ($widget) {
+        $key_pause->enabled(1);
+        $key_stop->enabled(1);
+        $key_play->enabled(0);
+        $n_done  or  $player->open_pipe;
+        $start_time = [gettimeofday];
+        $timer->start;
+    },
+);
+
+$key_pause = $keys->insert(
+    Button =>
+    pack => { side => 'left' },
+    text => symbol('PAUSE'),
+    enabled => 0,
+    onClick => sub ($widget) {
+        $key_play->enabled(1);
+        $key_pause->enabled(0);
+        $key_stop->enabled(1);
+        $n_resume = $n_done;
+        $timer->stop;
+    },
+);
+
+$key_stop = $keys->insert(
+    Button =>
+    pack => { side => 'left' },
+    text => symbol('STOP'),
+    enabled => 0,
+    onClick => sub ($widget) {
+        $key_play->enabled(1);
+        $key_pause->enabled(0);
+        $key_stop->enabled(0);
+        $timer->stop;
+        $player->close_pipe;
+        $n_done = 0;
+        $n_resume = 0;
+    },
+);
+
+$timer = $::application->insert(
     Timer =>
     timeout => 1000 * $tick,
     onTick  => sub { tick() }
@@ -99,16 +192,11 @@ $spectrum_w = $main->insert(
 my $spectrum = Audio::Aoede::UI::Spectrum->new(
     parent => $spectrum_w,
     channels => [qw( left right )],
-    rate => 6000, # Actually, that's twice the limit
+    limit => $limit,
     size => [800,400],
     pack      => { side => 'top', fill => 'both' },
 );
 
-my $start_time;
-sub run_spectra () {
-    $start_time = [gettimeofday];
-    $timer->start;
-}
 
 sub run_spectrum ($todo) {
     my $last = $n_done + $todo - 1;
@@ -123,21 +211,25 @@ sub run_spectrum ($todo) {
             $todo = $n_spectrum_samples;
         }
         my $c_left = $left->slice([$n_done,$end]);
-        my $s_left =  $A->spectrum($c_left,3000);
+        my $s_left =  $A->spectrum($c_left,$limit);
         my $c_right = $right->slice([$n_done,$end]);
-        my $s_right = $A->spectrum($c_right,3000);
+        my $s_right = $A->spectrum($c_right,$limit);
         $spectrum->update(left => $s_left, right => $s_right);
         $n_done = $last;
     }
     else {
+        $key_play->enabled(1);
+        $key_stop->enabled(0);
+        $n_done = 0;
         $timer->stop;
+        $spectrum->clear;
         $player->close_pipe;
     }
 }
 
-my $done = 0;
 sub tick {
-    my $current = int (tv_interval($start_time) * $rate + 1.5);
+    my $current = $n_resume + int (tv_interval($start_time) * $rate + 1.5);
+    $pos_slider->value($current/$rate);
     my $todo = ($current - $n_done) & -2;
     run_spectrum($todo);
 }
