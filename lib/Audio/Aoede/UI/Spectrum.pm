@@ -43,6 +43,12 @@ my %orientations = (
 );
 
 
+method set_limit ($new) {
+    $limit = $new;
+    return;
+}
+
+
 method update (%data) {
     my $n_samples = (values %data)[0]->dim(0);
     my $max = '-Inf';

@@ -94,7 +94,8 @@ class Audio::Aoede::Player::SoX
 
 
     method close_pipe () {
-        close $self->handle;
+        $self->handle  and  close $self->handle;
+        $self->_set_handle(undef);
     }
 
 

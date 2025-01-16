@@ -15,17 +15,18 @@ use Audio::Aoede;
 use Audio::Aoede::Player::SoX;
 use Audio::Aoede::Recorder::SoX;
 use Audio::Aoede::Units qw( symbol );
+use Audio::Aoede::UI::Spectre::Options;
 use Audio::Aoede::UI::Spectrum;
 
 ######################################################################
-# Configuration hardwired right now
-my $tick = 1/50;  # How far can we go?
+# Configuration, some hardwired right now
+my $fps = 50;
 my $rate = 48000; # we have ~800 samples per second
 my $bits = 16;    # Where should this be defined?
 my $channels = 2; # Where should this be defined?
-my $max_frequency = 22000;
-my $limit = 5000;
-my $n_spectrum_samples = 2000;
+my $limit = 2500;
+my $n_spectrum_samples = 2400;
+my $resolution = $rate / $n_spectrum_samples;
 
 my $path;
 my $current_directory;
@@ -38,6 +39,7 @@ my ($left,$right);
 
 my ($key_play,$key_pause,$key_stop);
 my ($current_file_label,$pos_slider);
+my $spectrum;
 
 
 my $timer;
@@ -67,6 +69,7 @@ sub process_file {
         directory => $current_directory || '.',
     );
     if ($open->execute) {
+        stop();
         $path = $open->fileName;
         $current_file_label->text("Playing: $path");
         $current_file_label->repaint;
@@ -100,16 +103,26 @@ my $main = Prima::MainWindow->create(
               sub { $::application->close } ],
          ],
      ],
-    ],
+    ]
 );
 
-$current_file_label = $main->insert(
-    Label =>
-    text => $path // '',
+my $top = $main->insert(
+    Widget =>
     pack => { side => 'top' }
 );
 
-$pos_slider = $main->insert(
+my $file_info = $top->insert(
+    Widget =>
+    pack => { side => 'left' }
+);
+
+$current_file_label = $file_info->insert(
+    Label =>
+    text => $path // '(no file)',
+    pack => { side => 'top' }
+);
+
+$pos_slider = $file_info->insert(
     Slider =>
     increment => 1,
     min => 0,
@@ -127,7 +140,7 @@ $pos_slider = $main->insert(
     pack => { side => 'top' }
 );
 
-my $keys = $main->insert(
+my $keys = $file_info->insert(
     Widget =>
     pack => { side => 'top' }
 );
@@ -156,8 +169,7 @@ $key_pause = $keys->insert(
         $key_play->enabled(1);
         $key_pause->enabled(0);
         $key_stop->enabled(1);
-        $n_resume = $n_done;
-        $timer->stop;
+        pause();
     },
 );
 
@@ -170,18 +182,36 @@ $key_stop = $keys->insert(
         $key_play->enabled(1);
         $key_pause->enabled(0);
         $key_stop->enabled(0);
-        $timer->stop;
-        $player->close_pipe;
-        $n_done = 0;
-        $n_resume = 0;
+        stop();
+    },
+);
+
+my $config_ui = Audio::Aoede::UI::Spectre::Options->new(
+    parent => $top,
+    fps => $fps // 1000/$timer->timeout,
+    fps_callback => sub ($fps) { new_fps ($fps) },
+    resolution => $resolution,
+    resolution_callback => sub ($res) {
+        $res  and  $n_spectrum_samples = $rate / $res;
+    },
+    frequency_limit => $limit,
+    frequency_limit_callback => sub ($new) {
+        $limit = $new;
+        $spectrum->set_limit($new);
     },
 );
 
 $timer = $::application->insert(
     Timer =>
-    timeout => 1000 * $tick,
+    timeout => 1000 / $fps,
     onTick  => sub { tick() }
 );
+
+
+sub new_fps ($fps) {
+    $fps  and  $timer->timeout(1000/$fps);
+}
+
 
 my $spectrum_w;
 $spectrum_w = $main->insert(
@@ -189,7 +219,8 @@ $spectrum_w = $main->insert(
     onClose => sub { undef $spectrum_w },
     pack      => { side => 'top' },
 );
-my $spectrum = Audio::Aoede::UI::Spectrum->new(
+
+$spectrum = Audio::Aoede::UI::Spectrum->new(
     parent => $spectrum_w,
     channels => [qw( left right )],
     limit => $limit,
@@ -202,14 +233,11 @@ sub run_spectrum ($todo) {
     my $last = $n_done + $todo - 1;
     if ($last < $n_available) {
         $player->send_piddle($sound->slice([$n_done,$last],[0,1])->transpose);
-        my $end = $last;
-        if ($todo > $n_spectrum_samples) {
-            $end = $n_done + $n_spectrum_samples - 1;
-            if ($end >= $n_available) {
-                $end = $n_available - 1;
-            }
-            $todo = $n_spectrum_samples;
+        my $end = $n_done + $n_spectrum_samples - 1;
+        if ($end >= $n_available) {
+            $end = $n_available - 1;
         }
+        $todo = $n_spectrum_samples;
         my $c_left = $left->slice([$n_done,$end]);
         my $s_left =  $A->spectrum($c_left,$limit);
         my $c_right = $right->slice([$n_done,$end]);
@@ -227,11 +255,27 @@ sub run_spectrum ($todo) {
     }
 }
 
+
+sub pause {
+    $n_resume = $n_done;
+    $timer->stop;
+}
+
+
+sub stop {
+    $timer->stop;
+    $player->close_pipe;
+    $n_done = 0;
+    $n_resume = 0;
+}
+
+
 sub tick {
     my $current = $n_resume + int (tv_interval($start_time) * $rate + 1.5);
     $pos_slider->value($current/$rate);
     my $todo = ($current - $n_done) & -2;
     run_spectrum($todo);
 }
+
 
 Prima->run;
