@@ -37,7 +37,7 @@ ADJUST {
         onChange => sub ($widget) {
             $fps_callback->($widget->text)
         },
-        pack => { side => 'left' },
+        pack => { side => 'right' },
     );
     my $res_ui = $options_ui->insert(
         Widget =>
@@ -55,7 +55,7 @@ ADJUST {
         onChange => sub ($widget) {
             $resolution_callback->($widget->text)
         },
-        pack => { side => 'left' },
+        pack => { side => 'right' },
     );
     my $lim_ui = $options_ui->insert(
         Widget =>
@@ -73,7 +73,7 @@ ADJUST {
         onChange => sub ($widget) {
             $frequency_limit_callback->($widget->text)
         },
-        pack => { side => 'left' },
+        pack => { side => 'right' },
     );
 }
 

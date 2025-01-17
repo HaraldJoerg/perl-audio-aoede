@@ -3,6 +3,7 @@ use 5.032;
 
 use Feature::Compat::Class;
 use feature 'signatures';
+use feature 'try';
 no warnings 'experimental';
 
 class Audio::Aoede::Recorder::SoX
@@ -21,6 +22,8 @@ class Audio::Aoede::Recorder::SoX
     field $channels :param;
     field $in       :param = '--default';
     field %output_properties;
+    field $handle :reader;
+    field $pid;
 
     ADJUST {
         %output_properties = (
@@ -32,9 +35,11 @@ class Audio::Aoede::Recorder::SoX
         );
     }
 
+
     sub set_sox_path ($class,$path) {
         $sox = $path;
     }
+
 
     method read_file ($path) {
         open (my $handle, '-|',
@@ -58,8 +63,10 @@ class Audio::Aoede::Recorder::SoX
         $$ptr = $data;
         $sound->upd_data;
         $handle->close;
-        my $channels = $sound->transpose;
+        return $sound;
     }
+
+
     method record_mono ($time) {
         $channels = 1;
         open (my $handle,'-|',
@@ -84,6 +91,45 @@ class Audio::Aoede::Recorder::SoX
         $$sound_ref = $data;
         $sound->upd_data;
         return $sound;
+    }
+
+
+    method open_pipe {
+        say "*** opening a pipe";
+        $pid = open ($handle,'-|',
+              $sox,
+              '--no-show-progress',
+              '--default',
+              _build_argument_list(%output_properties),
+              '-',
+              'trim', 0,
+          )
+            or die "No pipe, no fun: '$!'";
+        binmode $handle;
+        return $handle;
+    }
+
+
+    method read_pipe ($n_samples) {
+        my $n_bytes = $n_samples * $channels * $bits/8;
+        my $data;
+        my $got = sysread $handle,$data,$n_bytes,0;
+        my $sound = short zeroes ($channels,$n_samples);
+        my $sound_ref = $sound->get_dataref;
+        $$sound_ref = $data;
+        $sound->upd_data;
+        return $sound;
+    }
+
+
+    method close_pipe {
+        try {
+            kill 'INT',$pid;
+        }
+        catch ($error) {
+            warn "Killing SoX failed: '$error' + '$!'";
+        }
+        undef $handle;
     }
 
 

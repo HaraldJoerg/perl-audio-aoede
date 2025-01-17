@@ -45,6 +45,7 @@ my %orientations = (
 
 method set_limit ($new) {
     $limit = $new;
+    $plot->x->max($limit);
     return;
 }
 
@@ -74,7 +75,8 @@ method update (%data) {
         $plot->dataSets->{$channel}  =
             ds::Pair((sequence($n_samples) / $n_samples) * $limit,
                      $spectrum * $orientations{$channel},
-                     plotType => ppair::Spikes(lineWidths => $line_width),
+                     # plotType => ppair::Spikes(lineWidths => $line_width),
+                     plotType => ppair::Lines,
                      color => $colors{$channel} || cl::Black,
              );
     }
@@ -85,6 +87,7 @@ method update (%data) {
 
 method clear {
     %{$plot->dataSets} = ();
+    $plot->repaint;
 }
 
 

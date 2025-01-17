@@ -1,11 +1,13 @@
-#!/usr/bin/env perl
 use 5.032;
 use strict;
 use feature "signatures";
 no warnings "experimental";
 
-use Prima qw(Dialog::FileDialog);
+use Getopt::Long;
+use Prima::noARGV;
+use Prima qw( Dialog::FileDialog );
 use Prima::Application name => 'Aoede Sound Viewer';
+use PDL;
 use PDL::Graphics::Prima;
 use FindBin;
 use lib "$FindBin::Bin/../lib";
@@ -13,46 +15,69 @@ use Time::HiRes qw( tv_interval gettimeofday );
 
 use Audio::Aoede;
 use Audio::Aoede::Player::SoX;
+#use Audio::Aoede::Player::PortAudio;
+use Audio::Aoede::Recorder::PortAudio;
 use Audio::Aoede::Recorder::SoX;
 use Audio::Aoede::Units qw( symbol );
 use Audio::Aoede::UI::Spectre::Options;
 use Audio::Aoede::UI::Spectrum;
+use Audio::Aoede::UI::Timer;
 
 ######################################################################
 # Configuration, some hardwired right now
-my $fps = 50;
+my $fps = 20;
 my $rate = 48000; # we have ~800 samples per second
 my $bits = 16;    # Where should this be defined?
 my $channels = 2; # Where should this be defined?
 my $limit = 2500;
-my $n_spectrum_samples = 2400;
-my $resolution = $rate / $n_spectrum_samples;
+my $resolution = 20;
+
+my $run;
+
+# Allow overriding on the command line
+GetOptions(
+    "fps=f" => \$fps,
+    "resolution=i" => \$resolution,
+    "limit=i" => \$limit,
+    "rate=i" => \$rate,
+    "run=s" => \$run,
+);
 
 my $path;
 my $current_directory;
 
-my $sound;
-my $n_done;
+my $sound = zeroes(2,0);
 my $n_resume = 0;
-my $n_available;
 my ($left,$right);
 
-my ($key_play,$key_pause,$key_stop);
+my $state = 'idle';
+my ($key_record,$key_play,$key_pause,$key_stop);
 my ($current_file_label,$pos_slider);
 my $spectrum;
 
 
-my $timer;
-my $start_time;
+my $timer = Audio::Aoede::UI::Timer->new(
+    fps => $fps,
+);
+
 
 my $A = Audio::Aoede->new(rate => $rate);
 
-my $recorder = Audio::Aoede::Recorder::SoX->new(
-    rate => $rate,
-    bits => 16,
-    channels => 2
+my %recorders = (
+    sox => Audio::Aoede::Recorder::SoX->new(
+        rate => $rate,
+        bits => 16,
+        channels => 2
+    ),
+    portaudio => Audio::Aoede::Recorder::PortAudio->new(
+        rate => $rate,
+        bits => 16,
+        channels => 2
+    ),
 );
 
+#my $player = Audio::Aoede::Player::PortAudio->new(
+#my $player = Audio::Aoede::Player::Ecasound->new(
 my $player = Audio::Aoede::Player::SoX->new(
     rate => $rate,
     bits => 16,
@@ -74,17 +99,38 @@ sub process_file {
         $current_file_label->text("Playing: $path");
         $current_file_label->repaint;
         $current_directory = $open->directory;
-        $sound = $recorder->read_file($path);
-        $n_available = $sound->dim(0);
-        $n_done = 0;
-        $n_resume = 0;
-        ($left,$right) = $sound->dog;
+        $sound = $recorders{sox}->read_file($path);
+        ($left,$right) = $sound->transpose->dog;
         my $sound_time = $left->dim(0) / $rate;
         $pos_slider->max($sound_time);
         $key_play->enabled(1);
+        $timer->reset_time;
     }
 
 }
+
+
+sub save_as {
+    my $save = Prima::Dialog::SaveDialog->new(
+        filter => [
+            ['Ogg vorbis sound files' => '*.ogg'],
+            ['All' => '*'],
+        ],
+        directory => $current_directory || '.',
+    );
+    if ($save->execute) {
+        my $path = $save->fileName;
+        my $writer = Audio::Aoede::Player::SoX->new(
+            rate => $rate,
+            bits => $bits,
+            channels => $channels,
+        );
+        $writer->play_piddle($sound,$path);
+        $current_file_label->text("Playing: $path");
+    }
+}
+
+my $auto_close = sub {};
 
 
 my $main = Prima::MainWindow->create(
@@ -99,12 +145,19 @@ my $main = Prima::MainWindow->create(
                  '~Open' => 'Ctrl+O', '^O',
                  sub { process_file() },
              ],
+             [
+                 'Save ~As...' =>
+                 sub { save_as() },
+             ],
              ['~Quit' => 'Ctrl+Q', '^Q',
-              sub { $::application->close } ],
+              sub { $::application->close }
+          ],
          ],
      ],
-    ]
+    ],
+    onClose => \&shutdown,
 );
+$main->hide;
 
 my $top = $main->insert(
     Widget =>
@@ -127,7 +180,7 @@ $pos_slider = $file_info->insert(
     increment => 1,
     min => 0,
     max => 100,
-    size => [600,30],
+    size => [600,50],
     autoTrack => 0,
     ticks => [
         { value => 60,
@@ -137,13 +190,69 @@ $pos_slider = $file_info->insert(
           text => '0:00',
       }
     ],
-    pack => { side => 'top' }
+    pack => { side => 'top' },
+    onChange => \&pos_slider_change,
 );
+my $current_pos;
+sub adjust_slider($end) {
+    $current_pos = $end;
+    $pos_slider->value($end);
+    $pos_slider->repaint;
+}
+
+sub pos_slider_change ($widget) {
+    my $new = $widget->value;
+    if ($new != int $current_pos) {
+        # Change happened by user, not by timer
+        my $delta = $new - $current_pos;
+        $timer->shift_time($delta);
+        $current_pos = $widget->value;
+    }
+}
 
 my $keys = $file_info->insert(
     Widget =>
     pack => { side => 'top' }
 );
+
+$key_record = $keys->insert(
+    Button =>
+    pack => { side => 'left' },
+    text => symbol('RECORD'),
+    enabled => 1,
+    onClick => sub ($widget) {
+        record();
+    },
+);
+
+
+sub playback ($end) {
+    my $first = $current_pos * $rate;
+    adjust_slider($end);
+    run_spectrum($end);
+    my $last  = int($end * $rate + 0.5) - 1;
+    if ($last >= $sound->dim(1)) {
+        $last = $sound->dim(1) - 1;
+    }
+    if ($last > $first) {
+        $player->send_piddle($sound->slice([0,1],[$first,$last]));
+    }
+    if ($last >= $sound->dim(1) - 1  &&  $state eq 'playing') {
+        stop();
+        &$auto_close;
+    }
+}
+
+sub play () {
+    $key_record->enabled(0);
+    $key_pause->enabled(1);
+    $key_stop->enabled(1);
+    $key_play->enabled(0);
+    $player->open_pipe;
+    $timer->add_callback( \&playback );
+    $timer->start;
+    $state = 'playing';
+}
 
 $key_play = $keys->insert(
     Button =>
@@ -151,14 +260,21 @@ $key_play = $keys->insert(
     text => symbol('PLAY'),
     enabled => 0,
     onClick => sub ($widget) {
-        $key_pause->enabled(1);
-        $key_stop->enabled(1);
-        $key_play->enabled(0);
-        $n_done  or  $player->open_pipe;
-        $start_time = [gettimeofday];
-        $timer->start;
+        play();
     },
 );
+
+
+sub pause () {
+    $key_record->enabled(1);
+    $key_play->enabled(1);
+    $key_pause->enabled(0);
+    $key_stop->enabled(1);
+    $timer->pause();
+    $player->close_pipe;
+    $state = 'paused';
+    # show_state(); # uncomment for some debugging
+}
 
 $key_pause = $keys->insert(
     Button =>
@@ -166,9 +282,6 @@ $key_pause = $keys->insert(
     text => symbol('PAUSE'),
     enabled => 0,
     onClick => sub ($widget) {
-        $key_play->enabled(1);
-        $key_pause->enabled(0);
-        $key_stop->enabled(1);
         pause();
     },
 );
@@ -179,20 +292,17 @@ $key_stop = $keys->insert(
     text => symbol('STOP'),
     enabled => 0,
     onClick => sub ($widget) {
-        $key_play->enabled(1);
-        $key_pause->enabled(0);
-        $key_stop->enabled(0);
         stop();
     },
 );
 
 my $config_ui = Audio::Aoede::UI::Spectre::Options->new(
     parent => $top,
-    fps => $fps // 1000/$timer->timeout,
-    fps_callback => sub ($fps) { new_fps ($fps) },
+    fps => $fps // $timer->fps,
+    fps_callback => sub ($fps) { $timer->set_fps ($fps) },
     resolution => $resolution,
     resolution_callback => sub ($res) {
-        $res  and  $n_spectrum_samples = $rate / $res;
+        $resolution = $res;
     },
     frequency_limit => $limit,
     frequency_limit_callback => sub ($new) {
@@ -200,17 +310,6 @@ my $config_ui = Audio::Aoede::UI::Spectre::Options->new(
         $spectrum->set_limit($new);
     },
 );
-
-$timer = $::application->insert(
-    Timer =>
-    timeout => 1000 / $fps,
-    onTick  => sub { tick() }
-);
-
-
-sub new_fps ($fps) {
-    $fps  and  $timer->timeout(1000/$fps);
-}
 
 
 my $spectrum_w;
@@ -229,53 +328,144 @@ $spectrum = Audio::Aoede::UI::Spectrum->new(
 );
 
 
-sub run_spectrum ($todo) {
-    my $last = $n_done + $todo - 1;
-    if ($last < $n_available) {
-        $player->send_piddle($sound->slice([$n_done,$last],[0,1])->transpose);
-        my $end = $n_done + $n_spectrum_samples - 1;
-        if ($end >= $n_available) {
-            $end = $n_available - 1;
-        }
-        $todo = $n_spectrum_samples;
-        my $c_left = $left->slice([$n_done,$end]);
+sub run_spectrum ($end) {
+    return unless defined $left; # happens for low FPS values
+    my $n_spectrum_samples = int($rate/$resolution);
+    my $first = int($current_pos * $rate + 0.5) - $n_spectrum_samples;
+    my $last  = $first + $n_spectrum_samples - 1;
+    if ($first >= 0  and  $last < $left->dim(0)) {
+        my $c_left = $left->slice([$first,$last]);
         my $s_left =  $A->spectrum($c_left,$limit);
-        my $c_right = $right->slice([$n_done,$end]);
+        my $c_right = $right->slice([$first,$last]);
         my $s_right = $A->spectrum($c_right,$limit);
         $spectrum->update(left => $s_left, right => $s_right);
-        $n_done = $last;
-    }
-    else {
-        $key_play->enabled(1);
-        $key_stop->enabled(0);
-        $n_done = 0;
-        $timer->stop;
-        $spectrum->clear;
-        $player->close_pipe;
     }
 }
 
+sub read_pipe ($end) {
+    my $n_samples = int ($rate * ($end-$current_pos) + 0.5);
+    return if $n_samples <= 0;
+    my $sound = $recorders{portaudio}->read_pipe($n_samples);
+    $current_pos += $sound->dim(1)/$rate;
+    $player->send_piddle($sound);
+    my @channels = $sound->transpose->dog;
+    $left = defined $left ? $left->append($channels[0]) : $channels[0];
+    $right = defined $right ? $right->append($channels[1]) : $channels[1];
+    run_spectrum($end);
+    $pos_slider->max($end // 0);
+    $pos_slider->value($end);
+    $pos_slider->repaint;
+}
 
-sub pause {
-    $n_resume = $n_done;
-    $timer->stop;
+
+sub record () {
+    if ($sound->dim(1)) {
+        use Prima::MsgBox qw( message );
+        my $response = message_box(
+            q(We have a sound),
+            q(Drop current sound or cancel recording?),
+            mb::Yes|mb::Cancel|mb::Question);
+        return if ($response eq mb::Cancel);
+        if ($response  eq  mb::Yes) {
+            $sound = zeroes(2,0);
+            $left = pdl([]);
+            $right = pdl([]);
+        }
+    }
+    $current_file_label->text("Recording...");
+    $current_file_label->repaint;
+    $key_record->enabled(0);
+    $key_pause->enabled(1);
+    $key_stop->enabled(1);
+    $key_play->enabled(0);
+
+    $player->open_pipe;
+    $recorders{portaudio}->open_pipe;
+    $timer->add_callback(\&read_pipe);
+    $timer->reset_time;
+    # show_state();
+    $timer->start;
+    $state = 'recording';
 }
 
 
 sub stop {
-    $timer->stop;
-    $player->close_pipe;
-    $n_done = 0;
-    $n_resume = 0;
+    $key_record->enabled(1);
+    $key_play->enabled(1);
+    $key_pause->enabled(0);
+    $key_stop->enabled(0);
+    adjust_slider(0);
+
+    if ($state eq 'playing') {
+        $timer->stop;
+        $player->close_pipe;
+        $spectrum->clear;
+        $current_pos = 0;
+    }
+    elsif ($state eq 'paused') {
+        $timer->reset_time;
+        $player->close_pipe;
+        $spectrum->clear;
+        $current_pos = 0;
+    }
+    elsif ($state eq 'recording') {
+        $timer->stop;
+        $recorders{portaudio}->close_pipe;
+        $player->close_pipe;
+        $spectrum->clear;
+        # Now allow for replay
+        $current_pos = 0;
+        $sound = (cat ($left,$right))->transpose;
+        my $sound_time = $sound->dim(1) / $rate;
+        $pos_slider->max($sound_time);
+    }
+    $state = 'idle';
+    # show_state();
 }
 
-
-sub tick {
-    my $current = $n_resume + int (tv_interval($start_time) * $rate + 1.5);
-    $pos_slider->value($current/$rate);
-    my $todo = ($current - $n_done) & -2;
-    run_spectrum($todo);
+sub shutdown {
+#    $::application->close;
 }
 
+$::application->set(
+    'onIdle' => sub {
+        if ($run) {
+            # This is for profiling: Read a file, play it, and
+            # terminate the application.  Show the GUI during the
+            # process.
+            $auto_close = sub { $::application->close };
+            $path = $run;
+            $run = '';
+            $current_file_label->text("Playing: $path");
+            $current_file_label->repaint;
+            $sound = $recorders{sox}->read_file($path);
+            ($left,$right) = $sound->transpose->dog;
+            my $sound_time = $left->dim(0) / $rate;
+            $pos_slider->max($sound_time);
+            $key_play->enabled(1);
+            $timer->reset_time;
+	    $player->open_pipe;
+	    $timer->add_callback(\&playback);
+	    $timer->start;
+            $timer->reset_time;
+        }
+    }
+);
 
+$main->show;
 Prima->run;
+
+# This can be invoked for diagnostic purposes.  Tread carefully while
+# a timer is running.
+
+sub show_state {
+    use Prima::MsgBox qw( message );
+    my %state = (
+        'number of samples' => $sound->dim(1),
+        'current time'      => $current_pos,
+        'current sample'    => $current_pos * $rate,
+    );
+    my $formatted = join "\n",
+        map { "$_ = $state{$_}" } sort keys %state;
+    message($formatted,mb::Ok);
+}
