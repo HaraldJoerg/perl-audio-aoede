@@ -38,7 +38,6 @@ class Audio::Aoede::Player::SoX
         );
         %output_properties = (
             channels => $channels,
-            %extra_output_properties,
         );
     }
 
@@ -56,15 +55,16 @@ class Audio::Aoede::Player::SoX
     # in an object.  All required input is contained in the LPCM
     # object.
     sub play_lpcm ($class, $lpcm, $to = undef) {
-        $to //= '--default'; # we don't have that in signatures yet
         my %spec = $lpcm->spec;
+        my $output_spec = {
+            (defined $to ? () : %extra_output_properties),
+            channels => $spec{channels},
+        };
+        $to //= '--default'; # we don't have that in signatures yet
         my $handle = _open_pipe(
             \%spec,
-            {
-                %extra_output_properties,
-                channels => $spec{channels}
-            },
-            $to // '--default',
+            $output_spec,
+            $to,
         );
         print $handle $lpcm->data;
         close $handle;
@@ -78,8 +78,12 @@ class Audio::Aoede::Player::SoX
     # specs similar to LPCM objects.  But then, we might not, because
     # we'd need to validate the specs.
     method play_piddle ($piddle,$to = undef) {
+        my $output_spec = {
+            %output_properties,
+            (defined $to ? () : %extra_output_properties),
+        };
         my $handle = _open_pipe(\%input_properties,
-                                \%output_properties,
+                                $output_spec,
                                 $to);
         print $handle ($piddle->get_dataref->$*);
         close $handle;
@@ -138,6 +142,8 @@ class Audio::Aoede::Player::SoX
 
 
     sub _open_pipe ($input_spec,$output_spec,$to) {
+        defined $to  or
+            $output_spec = { %$output_spec, %extra_output_properties };
         $to //= '--default'; # FIXME: In the future this goes in the signature
         open (my $handle, '|-',
               $sox,
