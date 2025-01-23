@@ -1,9 +1,11 @@
+#!/usr/bin/env perl
 use 5.032;
 use strict;
 use feature "signatures";
 no warnings "experimental";
 
 use Getopt::Long;
+use File::Spec;
 use Prima::noARGV;
 use Prima qw( Dialog::FileDialog );
 use Prima::Application name => 'Aoede Sound Viewer';
@@ -31,8 +33,7 @@ my $bits = 16;    # Where should this be defined?
 my $channels = 2; # Where should this be defined?
 my $limit = 2500;
 my $resolution = 20;
-
-my $run;
+my $run; # Automated runs are for profiling
 
 # Allow overriding on the command line
 GetOptions(
@@ -43,6 +44,7 @@ GetOptions(
     "run=s" => \$run,
 );
 
+my $title = 'Aoede Sound Viewer';
 my $path;
 my $current_directory;
 
@@ -54,6 +56,7 @@ my $state = 'idle';
 my ($key_record,$key_play,$key_pause,$key_stop);
 my ($current_file_label,$pos_slider);
 my $spectrum;
+my $main;
 
 
 my $timer = Audio::Aoede::UI::Timer->new(
@@ -96,7 +99,9 @@ sub process_file {
     if ($open->execute) {
         stop();
         $path = $open->fileName;
-        $current_file_label->text("Playing: $path");
+        my ($vol,$dirs,$file) = File::Spec->splitpath($path);
+        $current_file_label->text("Playing: $file");
+        $main->text("$title: $file");
         $current_file_label->repaint;
         $current_directory = $open->directory;
         $sound = $recorders{sox}->read_file($path);
@@ -126,15 +131,17 @@ sub save_as {
             channels => $channels,
         );
         $writer->play_piddle($sound,$path);
-        $current_file_label->text("Playing: $path");
+        my ($vol,$dirs,$file) = File::Spec->splitpath($path);
+        $current_file_label->text("Playing: $file");
+        $main->text("$title: $file");
     }
 }
 
 my $auto_close = sub {};
 
 
-my $main = Prima::MainWindow->create(
-    text  => 'Aoede Sound Viewer',
+$main = Prima::MainWindow->create(
+    text  => $title,
     backColor => cl::White,
     # Prima::Menu has a description of these formats
     menuItems =>
@@ -316,7 +323,7 @@ my $spectrum_w;
 $spectrum_w = $main->insert(
     Widget =>
     onClose => sub { undef $spectrum_w },
-    pack      => { side => 'top' },
+    pack      => { side => 'top', expand => 1, fill => 'both' },
 );
 
 $spectrum = Audio::Aoede::UI::Spectrum->new(
@@ -324,12 +331,13 @@ $spectrum = Audio::Aoede::UI::Spectrum->new(
     channels => [qw( left right )],
     limit => $limit,
     size => [800,400],
-    pack      => { side => 'top', fill => 'both' },
+    pack      => { side => 'top', expand => 1, fill => 'both' },
 );
 
 
 sub run_spectrum ($end) {
     return unless defined $left; # happens for low FPS values
+    return unless $resolution;
     my $n_spectrum_samples = int($rate/$resolution);
     my $first = int($current_pos * $rate + 0.5) - $n_spectrum_samples;
     my $last  = $first + $n_spectrum_samples - 1;
@@ -374,6 +382,7 @@ sub record () {
     }
     $current_file_label->text("Recording...");
     $current_file_label->repaint;
+    $main->text("$title");
     $key_record->enabled(0);
     $key_pause->enabled(1);
     $key_stop->enabled(1);

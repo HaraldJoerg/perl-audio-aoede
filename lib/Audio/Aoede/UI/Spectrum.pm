@@ -75,9 +75,9 @@ method update (%data) {
         $plot->dataSets->{$channel}  =
             ds::Pair((sequence($n_samples) / $n_samples) * $limit,
                      $spectrum * $orientations{$channel},
-                     # plotType => ppair::Spikes(lineWidths => $line_width),
-                     plotType => ppair::Lines,
+                     plotType => ppair::Histogram,
                      color => $colors{$channel} || cl::Black,
+                     backColor => $colors{$channel} || cl::Black,
              );
     }
 
