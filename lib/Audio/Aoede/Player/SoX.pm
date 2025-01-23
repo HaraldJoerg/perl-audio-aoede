@@ -78,12 +78,8 @@ class Audio::Aoede::Player::SoX
     # specs similar to LPCM objects.  But then, we might not, because
     # we'd need to validate the specs.
     method play_piddle ($piddle,$to = undef) {
-        my $output_spec = {
-            %output_properties,
-            (defined $to ? () : %extra_output_properties),
-        };
         my $handle = _open_pipe(\%input_properties,
-                                $output_spec,
+                                \%output_properties,
                                 $to);
         print $handle ($piddle->get_dataref->$*);
         close $handle;
@@ -142,7 +138,7 @@ class Audio::Aoede::Player::SoX
 
 
     sub _open_pipe ($input_spec,$output_spec,$to) {
-        defined $to  or
+        (defined($to)  and  $to ne '--default')  or
             $output_spec = { %$output_spec, %extra_output_properties };
         $to //= '--default'; # FIXME: In the future this goes in the signature
         open (my $handle, '|-',
