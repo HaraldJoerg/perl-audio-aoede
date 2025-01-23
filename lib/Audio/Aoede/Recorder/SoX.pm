@@ -25,6 +25,10 @@ class Audio::Aoede::Recorder::SoX
     field $handle :reader;
     field $pid;
 
+    my    %extra_properties =  ($^O =~ /MSWin32/)
+        ? (type => 'waveaudio')
+        : ();
+
     ADJUST {
         %output_properties = (
             type           => 'raw',
@@ -99,6 +103,7 @@ class Audio::Aoede::Recorder::SoX
         $pid = open ($handle,'-|',
               $sox,
               '--no-show-progress',
+              _build_argument_list(%extra_properties),
               '--default',
               _build_argument_list(%output_properties),
               '-',
