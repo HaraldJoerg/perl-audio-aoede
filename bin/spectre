@@ -2,6 +2,7 @@
 use 5.032;
 use strict;
 use feature "signatures";
+use feature "try";
 no warnings "experimental";
 
 use Getopt::Long;
@@ -17,7 +18,6 @@ use Time::HiRes qw( tv_interval gettimeofday );
 
 use Audio::Aoede;
 use Audio::Aoede::Player::SoX;
-#use Audio::Aoede::Player::PortAudio;
 use Audio::Aoede::Recorder::PortAudio;
 use Audio::Aoede::Recorder::SoX;
 use Audio::Aoede::Units qw( symbol );
@@ -66,18 +66,7 @@ my $timer = Audio::Aoede::UI::Timer->new(
 
 my $A = Audio::Aoede->new(rate => $rate);
 
-my %recorders = (
-    sox => Audio::Aoede::Recorder::SoX->new(
-        rate => $rate,
-        bits => 16,
-        channels => 2
-    ),
-    portaudio => Audio::Aoede::Recorder::PortAudio->new(
-        rate => $rate,
-        bits => 16,
-        channels => 2
-    ),
-);
+my %recorders = build_recorders($rate,$bits,$channels);
 
 #my $player = Audio::Aoede::Player::PortAudio->new(
 #my $player = Audio::Aoede::Player::Ecasound->new(
@@ -104,7 +93,7 @@ sub process_file {
         $main->text("$title: $file");
         $current_file_label->repaint;
         $current_directory = $open->directory;
-        $sound = $recorders{sox}->read_file($path);
+        $sound = $recorders{file}->read_file($path);
         ($left,$right) = $sound->transpose->dog;
         my $sound_time = $left->dim(0) / $rate;
         $pos_slider->max($sound_time);
@@ -353,7 +342,7 @@ sub run_spectrum ($end) {
 sub read_pipe ($end) {
     my $n_samples = int ($rate * ($end-$current_pos) + 0.5);
     return if $n_samples <= 0;
-    my $sound = $recorders{portaudio}->read_pipe($n_samples);
+    my $sound = $recorders{microphone}->read_pipe($n_samples);
     $current_pos += $sound->dim(1)/$rate;
     $player->send_piddle($sound);
     my @channels = $sound->transpose->dog;
@@ -389,7 +378,7 @@ sub record () {
     $key_play->enabled(0);
 
     $player->open_pipe;
-    $recorders{portaudio}->open_pipe;
+    $recorders{microphone}->open_pipe;
     $timer->add_callback(\&read_pipe);
     $timer->reset_time;
     # show_state();
@@ -419,7 +408,7 @@ sub stop {
     }
     elsif ($state eq 'recording') {
         $timer->stop;
-        $recorders{portaudio}->close_pipe;
+        $recorders{microphone}->close_pipe;
         $player->close_pipe;
         $spectrum->clear;
         # Now allow for replay
@@ -447,7 +436,7 @@ $::application->set(
             $run = '';
             $current_file_label->text("Playing: $path");
             $current_file_label->repaint;
-            $sound = $recorders{sox}->read_file($path);
+            $sound = $recorders{file}->read_file($path);
             ($left,$right) = $sound->transpose->dog;
             my $sound_time = $left->dim(0) / $rate;
             $pos_slider->max($sound_time);
@@ -477,4 +466,32 @@ sub show_state {
     my $formatted = join "\n",
         map { "$_ = $state{$_}" } sort keys %state;
     message($formatted,mb::Ok);
+}
+
+
+sub build_recorders ($rate,$bits,$channels) {
+    my %recorders;
+    # This one is unconditionally required for now
+    use Audio::Aoede::Recorder::SoX;
+    $recorders{file} = Audio::Aoede::Recorder::SoX->new(
+        rate => $rate,
+        bits => $bits,
+        channels => $channels,
+    );
+    try {
+        use Audio::Aoede::Recorder::PortAudio;
+        $recorders{microphone} = Audio::Aoede::Recorder::PortAudio->new(
+            rate => $rate,
+            bits => $bits,
+            channels => $channels,
+        );
+    }
+    catch ($error) {
+        warn <<~EOW;
+            The PortAudio recorder is not available: '$error'.
+            Falling back to SoX recording.
+            EOW
+        $recorders{microphone} = $recorders{file};
+    }
+    return %recorders;
 }
