@@ -319,9 +319,41 @@ $spectrum = Audio::Aoede::UI::Spectrum->new(
     parent => $spectrum_w,
     channels => [qw( left right )],
     limit => $limit,
+    frequency_axis_type => sc::Log,
     size => [800,400],
-    pack      => { side => 'top', expand => 1, fill => 'both' },
+    pack      => { side => 'left', expand => 1, fill => 'both' },
 );
+
+
+my $axis_opt = $spectrum_w->insert(
+    GroupBox =>
+    text => 'Frequency axis',
+    pack => { side => 'left', padx => 10 },
+);
+
+$axis_opt->insert(
+    Widget =>
+    size => [1,20],
+    pack => { side => 'top' },
+);
+
+$axis_opt->insert(
+    Radio =>
+    name => 'linear',
+    onClick => sub { $spectrum->set_axis_linear },
+    pack      => { side => 'top', padx => 20, },
+);
+
+$axis_opt->insert(
+    Radio =>
+    name => 'logarithmic',
+    checked => 1,
+    onClick => sub { $spectrum->set_axis_logarithmic },
+    pack      => { side => 'top', padx => 20, },
+);
+
+
+
 
 
 sub run_spectrum ($end) {
