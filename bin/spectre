@@ -213,6 +213,7 @@ sub pos_slider_change ($widget) {
         $current_pos = $widget->value;
         $pos_number->text(format_time($current_pos));
         $pos_number->repaint;
+        run_spectrum($current_pos);
     }
 }
 
