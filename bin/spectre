@@ -8,7 +8,7 @@ no warnings "experimental";
 use Getopt::Long;
 use File::Spec;
 use Prima::noARGV;
-use Prima qw( Dialog::FileDialog );
+use Prima qw( Dialog::FileDialog Sliders);
 use Prima::Application name => 'Aoede Sound Viewer';
 use PDL;
 use PDL::DSP::Windows;
@@ -183,6 +183,7 @@ $pos_slider = $file_info->insert(
     max => 100,
     size => [600,50],
     autoTrack => 1,
+    ribbonStrip => 1,
     ticks => [
         { value => 60,
           text => '1:00',
@@ -325,6 +326,7 @@ $spectrum = Audio::Aoede::UI::Spectrum->new(
     channels => [qw( left right )],
     f_min => $f_min,
     limit => $limit,
+    tuner_base => 440,
     frequency_axis_type => sc::Log,
     size => [800,400],
     pack      => { side => 'left', expand => 1, fill => 'both' },
@@ -400,8 +402,58 @@ $axis_opt->insert(
     pack      => { side => 'left', padx => 20, pady => 10,},
 );
 
+my $tuner_area = $spectrum_options->insert(
+    Widget =>
+    ownerBackColor => 1,
+    pack => { side => 'top', anchor => 'w', },
+);
 
+my ($tuner,$tuner_label);
+$tuner_area->insert(
+    CheckBox =>
+    text => "Show halftone grid",
+    ownerBackColor => 1,
+    ownerBackColor => 1,
+    pack => { side => 'top', anchor => 'w', },
+    onClick => sub ($widget) {
+        if ($widget->checked) {
+            $tuner_label->show;
+            $tuner->show;
+            $spectrum->show_halftone_grid;
+        }
+        else {
+            $tuner_label->hide;
+            $tuner->hide;
+            $spectrum->hide_halftone_grid;
+        }
+        run_spectrum($current_pos);
+    }
+);
 
+$tuner_label = $tuner_area->insert(
+    Label =>
+    text => 'Fine tuning (cent)',
+    ownerBackColor => 1,
+    pack => { side => 'top' },
+    visible => 0,
+);
+
+$tuner = $tuner_area->insert(
+    CircularSlider =>
+    buttons => 1,
+    stdPointer => 1,
+    increment => 1,
+    min => -50,
+    max => 50,
+    onChange => sub ($widget) {
+        my $v = $widget->value;
+        $spectrum->set_tuner_base(440 * (2**($v/1200)));
+        run_spectrum($current_pos);
+    },
+    ownerBackColor => 1,
+    pack => { side => 'top', pady => 20, anchor => 'w', },
+    visible => 0,
+);
 
 
 sub run_spectrum ($end) {

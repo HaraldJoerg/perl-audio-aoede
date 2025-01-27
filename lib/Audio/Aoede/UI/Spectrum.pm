@@ -20,6 +20,9 @@ field $max_y = '-Inf';
 field %spectra;
 field $channels :param;
 field $frequency_axis_type :param = sc::Linear;
+field $show_halftone_grid = 0;
+field $tuner_base :param = 1;
+field $halftones;
 
 ADJUST {
     $plot = $parent->insert(
@@ -30,6 +33,7 @@ ADJUST {
         size => $size,
     );
     $plot->x->scaling($frequency_axis_type);
+    $halftones = (2**(1/12)) ** (sequence(124)-57);
 }
 
 
@@ -73,6 +77,22 @@ method set_axis_logarithmic () {
 }
 
 
+method set_tuner_base ($new) {
+    return unless $new;
+    $tuner_base = $new;
+}
+
+
+method show_halftone_grid () {
+    $show_halftone_grid = 1;
+}
+
+
+method hide_halftone_grid () {
+    $show_halftone_grid = 0;
+}
+
+
 method update (%data) {
     # Cut small frequencies in logarithmic scaling
     my $n_data = (values %data)[0]->dim(0);
@@ -110,7 +130,20 @@ method update (%data) {
                      plotType => ppair::Histogram,
                      color => $colors{$channel} || cl::Black,
                      backColor => $colors{$channel} || cl::Black,
-             );
+                 );
+        if ($show_halftone_grid) {
+            my $ht = $halftones->where(($halftones >= $f_min/440)  &
+                                       ($halftones <= $limit/440));
+            my $tuner_lines = $ht * $tuner_base;
+            $plot->dataSets->{pitches} =
+                ds::Note(
+                    pnote::Line(x1 => { raw => $tuner_lines },
+                                x2 => { raw => $tuner_lines }),
+                );
+        }
+        else {
+            delete $plot->dataSets->{pitches};
+        }
     }
 
     $plot->repaint;
