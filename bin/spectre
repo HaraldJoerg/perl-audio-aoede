@@ -11,6 +11,7 @@ use Prima::noARGV;
 use Prima qw( Dialog::FileDialog );
 use Prima::Application name => 'Aoede Sound Viewer';
 use PDL;
+use PDL::DSP::Windows;
 use PDL::Graphics::Prima;
 use FindBin;
 use lib "$FindBin::Bin/../lib";
@@ -32,6 +33,7 @@ my $rate = 48000; # we have ~800 samples per second
 my $bits = 16;    # Where should this be defined?
 my $channels = 2; # Where should this be defined?
 my $limit = 2500;
+my $f_min = 50;
 my $resolution = 20;
 my $run; # Automated runs are for profiling
 
@@ -49,12 +51,11 @@ my $path;
 my $current_directory;
 
 my $sound = zeroes(2,0);
-my $n_resume = 0;
 my ($left,$right);
 
 my $state = 'idle';
 my ($key_record,$key_play,$key_pause,$key_stop);
-my ($current_file_label,$pos_slider);
+my ($current_file_label,$pos_slider,$pos_number);
 my $spectrum;
 my $main;
 
@@ -72,8 +73,8 @@ my %recorders = build_recorders($rate,$bits,$channels);
 #my $player = Audio::Aoede::Player::Ecasound->new(
 my $player = Audio::Aoede::Player::SoX->new(
     rate => $rate,
-    bits => 16,
-    channels => 2
+    bits => $bits,
+    channels => $channels,
 );
 
 
@@ -131,7 +132,7 @@ my $auto_close = sub {};
 
 $main = Prima::MainWindow->create(
     text  => $title,
-    backColor => cl::White,
+    backColor => hex('fff8e7'),
     # Prima::Menu has a description of these formats
     menuItems =>
     [
@@ -157,27 +158,31 @@ $main->hide;
 
 my $top = $main->insert(
     Widget =>
-    pack => { side => 'top' }
+    backColor => hex('fff8e7'),
+    pack => { side => 'top', anchor => 'w', }
 );
 
 my $file_info = $top->insert(
     Widget =>
-    pack => { side => 'left' }
+    ownerBackColor => 1,
+    pack => { side => 'left', padx => 20,}
 );
 
 $current_file_label = $file_info->insert(
     Label =>
     text => $path // '(no file)',
-    pack => { side => 'top' }
+    ownerBackColor => 1,
+    pack => { side => 'top', anchor => 'w', }
 );
 
+my $current_pos = 0;
 $pos_slider = $file_info->insert(
     Slider =>
     increment => 1,
     min => 0,
     max => 100,
     size => [600,50],
-    autoTrack => 0,
+    autoTrack => 1,
     ticks => [
         { value => 60,
           text => '1:00',
@@ -186,14 +191,17 @@ $pos_slider = $file_info->insert(
           text => '0:00',
       }
     ],
-    pack => { side => 'top' },
+    ownerBackColor => 1,
+    pack => { side => 'top', anchor => 'w', },
     onChange => \&pos_slider_change,
 );
-my $current_pos;
+
 sub adjust_slider($end) {
     $current_pos = $end;
     $pos_slider->value($end);
     $pos_slider->repaint;
+    $pos_number->text(format_time($end));
+    $pos_number->repaint;
 }
 
 sub pos_slider_change ($widget) {
@@ -203,12 +211,15 @@ sub pos_slider_change ($widget) {
         my $delta = $new - $current_pos;
         $timer->shift_time($delta);
         $current_pos = $widget->value;
+        $pos_number->text(format_time($current_pos));
+        $pos_number->repaint;
     }
 }
 
 my $keys = $file_info->insert(
     Widget =>
-    pack => { side => 'top' }
+    ownerBackColor => 1,
+    pack => { side => 'top', anchor => 'w', }
 );
 
 $key_record = $keys->insert(
@@ -292,25 +303,18 @@ $key_stop = $keys->insert(
     },
 );
 
-my $config_ui = Audio::Aoede::UI::Spectre::Options->new(
-    parent => $top,
-    fps => $fps // $timer->fps,
-    fps_callback => sub ($fps) { $timer->set_fps ($fps) },
-    resolution => $resolution,
-    resolution_callback => sub ($res) {
-        $resolution = $res;
-    },
-    frequency_limit => $limit,
-    frequency_limit_callback => sub ($new) {
-        $limit = $new;
-        $spectrum->set_limit($new);
-    },
+$pos_number = $keys->insert(
+    Label =>
+    text => format_time($current_pos),
+    pack => { side => 'right', padx => 20 },
 );
+
 
 
 my $spectrum_w;
 $spectrum_w = $main->insert(
     Widget =>
+    ownerBackColor => 1,
     onClose => sub { undef $spectrum_w },
     pack      => { side => 'top', expand => 1, fill => 'both' },
 );
@@ -318,30 +322,72 @@ $spectrum_w = $main->insert(
 $spectrum = Audio::Aoede::UI::Spectrum->new(
     parent => $spectrum_w,
     channels => [qw( left right )],
+    f_min => $f_min,
     limit => $limit,
     frequency_axis_type => sc::Log,
     size => [800,400],
     pack      => { side => 'left', expand => 1, fill => 'both' },
 );
 
+my $spectrum_options = $spectrum_w->insert(
+    Widget =>
+    ownerBackColor => 1,
+    pack => { side => 'left', padx => 10 },
+);
 
-my $axis_opt = $spectrum_w->insert(
+my $config_ui = Audio::Aoede::UI::Spectre::Options->new(
+    parent => $spectrum_options,,
+    fps => $fps // $timer->fps,
+    fps_callback => sub ($fps) {
+        return unless $fps;
+        return if $fps <= 0; # Ignore empty or invalid input
+        $timer->set_fps ($fps)
+    },
+    resolution => $resolution,
+    resolution_callback => sub ($res) {
+        return unless $res;   # Ignore empty input
+        return if $res <= 0;  # Ignore invalid input
+        $resolution = $res;
+        run_spectrum($current_pos);
+    },
+    frequency_min => $f_min,
+    frequency_min_callback => sub ($new) {
+        return unless $new;     # Ignore empty or zero input
+        return if $new <= 0;
+        return unless $new <= 0.5 * $limit; # at least one octave
+        $f_min = $new;
+        $spectrum->set_frequency_min($new);
+        run_spectrum($current_pos);
+    },
+    frequency_limit => $limit,
+    frequency_limit_callback => sub ($new) {
+        return unless $new;     # Ignore empty or zero input
+        return unless $new >= 2*$f_min; # at least one octave
+        return if $new < 100;   # totally arbitrary
+        $limit = $new;
+        $spectrum->set_limit($new);
+        run_spectrum($current_pos);
+    },
+);
+
+my $axis_opt = $spectrum_options->insert(
     GroupBox =>
     text => 'Frequency axis',
-    pack => { side => 'left', padx => 10 },
+    pack => { side => 'top', padx => 10, anchor => 'w', },
 );
 
 $axis_opt->insert(
     Widget =>
     size => [1,20],
-    pack => { side => 'top' },
+    pack => { side => 'top', anchor => 'w', },
 );
 
 $axis_opt->insert(
     Radio =>
     name => 'linear',
     onClick => sub { $spectrum->set_axis_linear },
-    pack      => { side => 'top', padx => 20, },
+    ownerBackColor => 1,
+    pack      => { side => 'left', padx => 20, pady => 10, },
 );
 
 $axis_opt->insert(
@@ -349,7 +395,8 @@ $axis_opt->insert(
     name => 'logarithmic',
     checked => 1,
     onClick => sub { $spectrum->set_axis_logarithmic },
-    pack      => { side => 'top', padx => 20, },
+    ownerBackColor => 1,
+    pack      => { side => 'left', padx => 20, pady => 10,},
 );
 
 
@@ -357,15 +404,18 @@ $axis_opt->insert(
 
 
 sub run_spectrum ($end) {
-    return unless defined $left; # happens for low FPS values
+    return unless $end; # just starting
+    return unless defined $left && $left->dim(0) > 0;
     return unless $resolution;
+    return if $resolution <= 0;
     my $n_spectrum_samples = int($rate/$resolution);
+    my $window = PDL::DSP::Windows->new($n_spectrum_samples);
     my $first = int($current_pos * $rate + 0.5) - $n_spectrum_samples;
     my $last  = $first + $n_spectrum_samples - 1;
     if ($first >= 0  and  $last < $left->dim(0)) {
-        my $c_left = $left->slice([$first,$last]);
+        my $c_left = $left->slice([$first,$last]) * $window->samples;
         my $s_left =  $A->spectrum($c_left,$limit);
-        my $c_right = $right->slice([$first,$last]);
+        my $c_right = $right->slice([$first,$last]) * $window->samples;
         my $s_right = $A->spectrum($c_right,$limit);
         $spectrum->update(left => $s_left, right => $s_right);
     }
@@ -526,4 +576,9 @@ sub build_recorders ($rate,$bits,$channels) {
         $recorders{microphone} = $recorders{file};
     }
     return %recorders;
+}
+
+
+sub format_time ($time) {
+    return sprintf("%02d:%05.2f",int($time/60),$time % 60);
 }

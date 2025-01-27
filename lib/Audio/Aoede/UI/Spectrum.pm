@@ -13,6 +13,7 @@ use PDL::Graphics::Prima;
 field $parent :param;
 field $size :param = [400,400];
 field $pack :param;
+field $f_min :param;
 field $limit :param;
 field $plot;
 field $max_y = '-Inf';
@@ -24,11 +25,8 @@ ADJUST {
     $plot = $parent->insert(
         Plot =>
         color => cl::Black,
-        backColor => cl::White,
         pack => $pack,
-        y => { min => 0,
-               max => 1,
-           },
+        ownerBackColor => 1,
         size => $size,
     );
     $plot->x->scaling($frequency_axis_type);
@@ -47,7 +45,16 @@ my %orientations = (
 );
 
 
+method set_frequency_min ($new) {
+    return if $new >= $plot->x->max;
+    $f_min = $new;
+    $plot->x->min($f_min);
+    return;
+}
+
+
 method set_limit ($new) {
+    return if $new <= $plot->x->min;
     $limit = $new;
     $plot->x->max($limit);
     return;
@@ -69,14 +76,12 @@ method set_axis_logarithmic () {
 method update (%data) {
     # Cut small frequencies in logarithmic scaling
     my $n_data = (values %data)[0]->dim(0);
-    my $min_index = 1;
-    if ($frequency_axis_type eq sc::Log) {
-        my $min_frequency = 50;
-        $min_index = int ($min_frequency * $n_data/$limit + 0.999);
-        $n_data -= ($min_index);
-        for my ($name,$spectrum) (%data) {
-            $data{$name} = $spectrum->slice([$min_index,-1]);
-        }
+    return unless $n_data;      # no spectrum yet
+    my $min_frequency = $f_min;
+    my $min_index = int ($min_frequency * $n_data/$limit + 0.999);
+    $n_data -= ($min_index);
+    for my ($name,$spectrum) (%data) {
+        $data{$name} = $spectrum->slice([$min_index,-1]);
     }
     my $max = '-Inf';
     for my $spectrum (values %data) {
@@ -99,7 +104,8 @@ method update (%data) {
     for my ($channel,$spectrum) (%data) {
         $orientation = - $orientation;
         $plot->dataSets->{$channel}  =
-            ds::Pair(((sequence($n_data)+$min_index) / $n_data) * $limit,
+            ds::Pair(((sequence($n_data)+$min_index) / $n_data)
+                     * ($limit-$min_frequency),
                      $spectrum * $orientations{$channel},
                      plotType => ppair::Histogram,
                      color => $colors{$channel} || cl::Black,
