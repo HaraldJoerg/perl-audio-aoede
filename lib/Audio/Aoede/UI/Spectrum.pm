@@ -140,9 +140,17 @@ method update (%data) {
                     pnote::Line(x1 => { raw => $tuner_lines },
                                 x2 => { raw => $tuner_lines }),
                 );
+            $plot->dataSets->{a4} =
+                ds::Note(
+                    pnote::Text(sprintf("%6.2f",$tuner_base),
+                                x => { raw => $tuner_base, },
+                                y => '90%',
+                            )
+                );
         }
         else {
             delete $plot->dataSets->{pitches};
+            delete $plot->dataSets->{a4};
         }
     }
 

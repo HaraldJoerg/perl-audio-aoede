@@ -87,18 +87,18 @@ sub process_file {
         directory => $current_directory || '.',
     );
     if ($open->execute) {
-        stop();
         $path = $open->fileName;
         my ($vol,$dirs,$file) = File::Spec->splitpath($path);
-        $current_file_label->text("Playing: $file");
+        stop();
         $main->text("$title: $file");
-        $current_file_label->repaint;
         $current_directory = $open->directory;
         $sound = $recorders{file}->read_file($path);
         ($left,$right) = $sound->transpose->dog;
         my $sound_time = $left->dim(0) / $rate;
         $pos_slider->max($sound_time);
         $key_play->enabled(1);
+        $current_file_label->text("Playing: $file");
+        $current_file_label->repaint;
         $timer->reset_time;
     }
 
@@ -451,7 +451,7 @@ $tuner = $tuner_area->insert(
         run_spectrum($current_pos);
     },
     ownerBackColor => 1,
-    pack => { side => 'top', pady => 20, anchor => 'w', },
+    pack => { side => 'top', pady => 20, },
     visible => 0,
 );
 
