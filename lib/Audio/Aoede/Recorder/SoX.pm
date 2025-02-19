@@ -9,7 +9,7 @@ no warnings 'experimental';
 class Audio::Aoede::Recorder::SoX
 #    :isa(Audio::Aoede::Recorder)  The parent class does not yet exist
 {
-    use PDL;
+    use PDL 2.099;
     use autodie;
 
     use Audio::Aoede::LPCM;
@@ -67,9 +67,7 @@ class Audio::Aoede::Recorder::SoX
         }
         my $n_samples = length($data) * 8 / $bits / $channels;
         my $sound = short zeroes (2,$n_samples);
-        my $ptr = $sound->get_dataref;
-        $$ptr = $data;
-        $sound->upd_data;
+        $sound->update_data_from($data);
         $handle->close;
         return $sound;
     }
@@ -95,9 +93,7 @@ class Audio::Aoede::Recorder::SoX
         }
         close $handle;
         my $sound = short zeroes (length($data) / PDL::Core::howbig(short));
-        my $sound_ref = $sound->get_dataref;
-        $$sound_ref = $data;
-        $sound->upd_data;
+        $sound->update_data_from($data);
         return $sound;
     }
 
@@ -124,9 +120,7 @@ class Audio::Aoede::Recorder::SoX
         my $data;
         my $got = sysread $handle,$data,$n_bytes,0;
         my $sound = short zeroes ($channels,$n_samples);
-        my $sound_ref = $sound->get_dataref;
-        $$sound_ref = $data;
-        $sound->upd_data;
+        $sound->update_data_from($data);
         return $sound;
     }
 

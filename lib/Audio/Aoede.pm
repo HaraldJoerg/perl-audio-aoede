@@ -8,7 +8,7 @@ no warnings 'experimental';
 
 class Audio::Aoede {
     use File::Temp;
-    use PDL;
+    use PDL 2.099;
     use List::Util();
 
     use Audio::Aoede::LPCM;
@@ -207,9 +207,7 @@ class Audio::Aoede {
 
         my $n_samples = $lpcm->n_samples;
         my $sound = short zeroes($lpcm->channels,$n_samples);
-        my $sound_ref = $sound->get_dataref;
-        $$sound_ref = $lpcm->data;
-        $sound->upd_data;
+        $sound->update_data_from($lpcm->data);
 
         # Now split it into the individual channels for further analysis
         my @channels = $sound->transpose->dog;

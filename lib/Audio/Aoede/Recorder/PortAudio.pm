@@ -10,7 +10,7 @@ class Audio::Aoede::Recorder::PortAudio
 #    :isa(Audio::Aoede::Recorder)  The parent class does not yet exist
 {
     use Capture::Tiny qw( capture );
-    use PDL;
+    use PDL 2.099;
     use autodie;
 
     field $rate     :param;
@@ -49,9 +49,7 @@ class Audio::Aoede::Recorder::PortAudio
         my $data;
         $handle->read($data,$n_samples);
         my $sound = short zeroes ($channels,$n_samples);
-        my $sound_ref = $sound->get_dataref;
-        $$sound_ref = $data;
-        $sound->upd_data;
+        $sound->update_data_from($data);
         return $sound;
     }
 
