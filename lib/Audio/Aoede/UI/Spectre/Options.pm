@@ -1,4 +1,4 @@
-# ABSTRACT: Configuration options for Aoede's audio spectrum viewer
+# ABSTRACT: Configuration options for Aoede's audio spectrum viewer UI
 package Audio::Aoede::UI::Spectre::Options;
 use 5.038;
 use Feature::Compat::Class;
@@ -7,109 +7,159 @@ no warnings 'experimental';
 
 class Audio::Aoede::UI::Spectre::Options;
 
-field $options_ui;
+use Prima qw( Buttons );
+use Audio::Aoede::UI::Spectre::Option;
+
 field $parent                   :param;
-field $fps                      :param;
-field $fps_callback             :param;
-field $resolution               :param;
-field $resolution_callback      :param;
-field $frequency_limit          :param;
-field $frequency_limit_callback :param;
-field $frequency_min            :param;
-field $frequency_min_callback   :param;
+field $pack                     :param;
+field $options_ui;
+field $tun_row;
+
+my @colnames = (qw ( label field unit ) );
 
 ADJUST {
+    my $frame = $parent->insert(
+        Widget =>
+        pack => $pack,
+        backColor => cl::Black,
+    );
     $options_ui = Prima::Widget->new(
-        pack => { side => 'top' },
-        owner => $parent,
+        owner => $frame,
+        backColor => cl::White,
+        pack => { pad => 2 },
         ownerBackColor => 1,
     );
-    my $fps_ui = $options_ui->insert(
-        Widget =>
-        ownerBackColor => 1,
-        pack => { side => 'top' },
+    my $fps_row = Audio::Aoede::UI::Spectre::Option->new(
+        parent => $options_ui,
+        label  => 'Frame rate:',
+        field  => [
+            InputLine =>
+            text      => main::get_config('fps'),
+            onChange  => sub ($widget) {
+                main::set_fps($widget->text);
+            },
+        ],
+        units  => 'FPS',
     );
-    $fps_ui->insert(
-        Label =>
-        text => 'Frame rate: ',
-        size => [200,30],
-        ownerBackColor => 1,
-        pack => { side => 'left' },
+    $fps_row->set_row(6);
+
+    my $res_row = Audio::Aoede::UI::Spectre::Option->new(
+        parent => $options_ui,
+        label  => 'Resolution:',
+        field  => [
+            InputLine =>
+            text      => main::get_config('resolution'),
+            onChange  => sub ($widget) {
+                main::set_resolution($widget->text);
+            },
+        ],
+        units  => 'Hz',
     );
-    $fps_ui->insert(
-        InputLine =>
-        text => $fps,
-        onChange => sub ($widget) {
-            $fps_callback->($widget->text)
-        },
-        ownerBackColor => 1,
-        pack => { side => 'right' },
+    $res_row->set_row(5);
+
+    my $min_row = Audio::Aoede::UI::Spectre::Option->new(
+        parent => $options_ui,
+        label  => 'Min frequency:',
+        field  => [
+            InputLine =>
+            text => main::get_config('min_frequency'),
+            onChange => sub ($widget) {
+                main::set_min_frequency->($widget->text)
+            },
+        ],
+        units  => 'Hz',
     );
-    my $res_ui = $options_ui->insert(
-        Widget =>
-        ownerBackColor => 1,
-        pack => { side => 'top' },
+    $min_row->set_row(4);
+
+    my $max_row = Audio::Aoede::UI::Spectre::Option->new(
+        parent => $options_ui,
+        label  => 'Max frequency:',
+        field  => [
+            InputLine =>
+            text => main::get_config('max_frequency'),
+            onChange => sub ($widget) {
+                main::set_max_frequency->($widget->text)
+            },
+        ],
+        units  => 'Hz',
     );
-    $res_ui->insert(
-        Label =>
-        text => 'Resolution (Hz): ',
-        size => [200,30],
-        ownerBackColor => 1,
-        pack => { side => 'left' },
+    $max_row->set_row(3);
+
+    my $axo_field = $options_ui->insert(
+        GroupBox =>
+        name => ' ',
+        border => 0,
     );
-    $res_ui->insert(
-        InputLine =>
-        text => $resolution,
-        onChange => sub ($widget) {
-            $resolution_callback->($widget->text)
-        },
-        ownerBackColor => 1,
-        pack => { side => 'right' },
+    $axo_field->insert(
+        Radio =>
+        name => 'linear',
+        onClick => sub { main::set_axis_linear() },
+        pack => { side => 'top', anchor => 'w',},
     );
-    my $min_ui = $options_ui->insert(
-        Widget =>
-        ownerBackColor => 1,
-        pack => { side => 'top' },
+    $axo_field->insert(
+        Radio =>
+        name => 'logarithmic',
+        checked => 1,
+        onClick => sub { main::set_axis_logarithmic() },
+        pack => { side => 'top', anchor => 'w'},
     );
-    $min_ui->insert(
-        Label =>
-        text => 'Min frequency (Hz): ',
-        size => [200,30],
-        ownerBackColor => 1,
-        pack => { side => 'left' },
+    my $axo_row = Audio::Aoede::UI::Spectre::Option->new(
+        parent => $options_ui,
+        label  => 'Frequency axis:',
+        field  => $axo_field,
     );
-    $min_ui->insert(
-        InputLine =>
-        text => $frequency_min,
-        onChange => sub ($widget) {
-            $frequency_min_callback->($widget->text)
-        },
-        ownerBackColor => 1,
-        pack => { side => 'right' },
+    $axo_row->set_row(2);
+
+    my $hgr_row = Audio::Aoede::UI::Spectre::Option->new(
+        parent => $options_ui,
+        label  => 'Show halftone grid',
+        field => [
+            CheckBox =>
+            text => ' ',
+            ownerBackColor => 1,
+            onClick => sub ($widget) {
+                if ($widget->checked) {
+                    $tun_row->enable;
+                    main::show_halftone_grid();
+                }
+                else {
+                    $tun_row->disable;
+                    main::hide_halftone_grid();
+                }
+                main::run_current_spectrum();
+            }
+        ],
     );
-    my $lim_ui = $options_ui->insert(
-        Widget =>
-        ownerBackColor => 1,
-        pack => { side => 'top' },
+    $hgr_row->set_row(1);
+
+    $tun_row = Audio::Aoede::UI::Spectre::Option->new(
+        parent => $options_ui,
+        label  => 'Fine tuning:',
+        field  => [
+            CircularSlider =>
+            buttons => 1,
+            increment => 1,
+            min => -50,
+            max => 50,
+            onChange => sub ($widget) {
+                my $v = $widget->value;
+                main::set_tuner_base(440 * (2**($v/1200)));
+            },
+        ],
+        units  => 'Cent',
     );
-    $lim_ui->insert(
-        Label =>
-        text => 'Max frequency (Hz):',
-        size => [200,30],
-        ownerBackColor => 1,
-        pack => { side => 'left' },
-    );
-    $lim_ui->insert(
-        InputLine =>
-        text => $frequency_limit,
-        onChange => sub ($widget) {
-            $frequency_limit_callback->($widget->text)
-        },
-        ownerBackColor => 1,
-        pack => { side => 'right' },
-    );
+    $tun_row->set_row(0);
+    $tun_row->disable;
 }
 
 
+method disable_hgr () {
+    $tun_row->disable;
+}
+
+
+method enable_hgr () {
+    $tun_row->enable;
+}
 
 1;

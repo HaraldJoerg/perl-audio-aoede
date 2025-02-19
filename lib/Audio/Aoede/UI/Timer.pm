@@ -73,13 +73,10 @@ method set_fps ($fps) {
 
 
 method tick {
-    if ($clear_callbacks) {
-    }
-    else {
-        $current_t = $offset + tv_interval($start_time);
-        for my $callback (values %callbacks) {
-            $callback->($current_t);
-        }
+    return if $clear_callbacks;
+    $current_t = $offset + tv_interval($start_time);
+    for my $callback (values %callbacks) {
+        $callback->($current_t);
     }
 }
 1;

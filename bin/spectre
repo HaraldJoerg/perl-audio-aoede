@@ -1,4 +1,8 @@
 #!/usr/bin/env perl
+
+our $title = 'Aoede Sound Viewer';
+our $VERSION = 0.01;
+
 use 5.032;
 use strict;
 use feature "signatures";
@@ -8,8 +12,8 @@ no warnings "experimental";
 use Getopt::Long;
 use File::Spec;
 use Prima::noARGV;
-use Prima qw( Dialog::FileDialog Sliders);
-use Prima::Application name => 'Aoede Sound Viewer';
+use Prima qw( Application Dialog::FileDialog Sliders Spinner);
+use Prima::MsgBox qw(message);
 use PDL;
 use PDL::DSP::Windows;
 use PDL::Graphics::Prima;
@@ -22,117 +26,75 @@ use Audio::Aoede::Player::SoX;
 use Audio::Aoede::Recorder::PortAudio;
 use Audio::Aoede::Recorder::SoX;
 use Audio::Aoede::Units qw( symbol );
+use Audio::Aoede::File;
+use Audio::Aoede::UI::Busy;
+use Audio::Aoede::UI::File;
 use Audio::Aoede::UI::Spectre::Options;
+use Audio::Aoede::UI::Spectrogram;
 use Audio::Aoede::UI::Spectrum;
 use Audio::Aoede::UI::Timer;
 
+# Linux shows the name in the task bar
+$::application->name($title);
+
 ######################################################################
 # Configuration, some hardwired right now
-my $fps = 20;
-my $rate = 48000; # we have ~800 samples per second
-my $bits = 16;    # Where should this be defined?
-my $channels = 2; # Where should this be defined?
-my $limit = 2500;
-my $f_min = 50;
-my $resolution = 20;
+my %options = (
+    fps           => 20,
+    rate          => 48000,     # we have ~800 samples per second
+    bits          => 16,        # fixed in the current implementation
+    channels      => 2,         # fixed in the current implementation
+    min_frequency => 50,
+    max_frequency => 2500,
+    resolution    => 20,
+    axis_type     => sc::Log,
+    A4_pitch      => 440,
+);
 my $run; # Automated runs are for profiling
 
 # Allow overriding on the command line
 GetOptions(
-    "fps=f" => \$fps,
-    "resolution=i" => \$resolution,
-    "limit=i" => \$limit,
-    "rate=i" => \$rate,
-    "run=s" => \$run,
+    "fps=f"           => \$options{fps},
+    "resolution=i"    => \$options{resolution},
+    "min_frequency=i" => \$options{min_frequency},
+    "max_frequency=i" => \$options{max_frequency},
+    "rate=i"          => \$options{rate},
+    "run=s"           => \$run,
 );
-
-my $title = 'Aoede Sound Viewer';
-my $path;
-my $current_directory;
-
-my $sound = zeroes(2,0);
-my ($left,$right);
 
 my $state = 'idle';
-my ($key_record,$key_play,$key_pause,$key_stop);
-my ($current_file_label,$pos_slider,$pos_number);
-my $spectrum;
-my $main;
 
+# We define UI items globally ... the UI widgets affect each other
+# quite a lot.
+my ($key_record,$key_play,$key_stop);
+my ($spectrum_ui,$spectrogram_ui);
+my $busy_ui;
 
 my $timer = Audio::Aoede::UI::Timer->new(
-    fps => $fps,
+    fps => $options{fps},
 );
 
+my $A = Audio::Aoede->new(rate => $options{rate});
 
-my $A = Audio::Aoede->new(rate => $rate);
+my %recorders = build_recorders($options{rate},$options{bits},$options{channels});
 
-my %recorders = build_recorders($rate,$bits,$channels);
-
+# These players might work, but they are not in focus right now
 #my $player = Audio::Aoede::Player::PortAudio->new(
 #my $player = Audio::Aoede::Player::Ecasound->new(
 my $player = Audio::Aoede::Player::SoX->new(
-    rate => $rate,
-    bits => $bits,
-    channels => $channels,
+    rate     => $options{rate},
+    bits     => $options{bits},
+    channels => $options{channels},
 );
 
-
-sub process_file {
-    my $open = Prima::Dialog::OpenDialog->new(
-        filter => [
-            ['Ogg vorbis sound files' => '*.ogg'],
-            ['All' => '*'],
-        ],
-        directory => $current_directory || '.',
-    );
-    if ($open->execute) {
-        $path = $open->fileName;
-        my ($vol,$dirs,$file) = File::Spec->splitpath($path);
-        stop();
-        $main->text("$title: $file");
-        $current_directory = $open->directory;
-        $sound = $recorders{file}->read_file($path);
-        ($left,$right) = $sound->transpose->dog;
-        my $sound_time = $left->dim(0) / $rate;
-        $pos_slider->max($sound_time);
-        $key_play->enabled(1);
-        $current_file_label->text("Playing: $file");
-        $current_file_label->repaint;
-        $timer->reset_time;
-    }
-
-}
-
-
-sub save_as {
-    my $save = Prima::Dialog::SaveDialog->new(
-        filter => [
-            ['Ogg vorbis sound files' => '*.ogg'],
-            ['All' => '*'],
-        ],
-        directory => $current_directory || '.',
-    );
-    if ($save->execute) {
-        my $path = $save->fileName;
-        my $writer = Audio::Aoede::Player::SoX->new(
-            rate => $rate,
-            bits => $bits,
-            channels => $channels,
-        );
-        $writer->play_piddle($sound,$path);
-        my ($vol,$dirs,$file) = File::Spec->splitpath($path);
-        $current_file_label->text("Playing: $file");
-        $main->text("$title: $file");
-    }
-}
+my $current;
 
 my $auto_close = sub {};
 
-
-$main = Prima::MainWindow->create(
+my $main = Prima::MainWindow->create(
     text  => $title,
     backColor => hex('fff8e7'),
+    visible => 0,
     # Prima::Menu has a description of these formats
     menuItems =>
     [
@@ -140,7 +102,7 @@ $main = Prima::MainWindow->create(
          [
              [
                  '~Open' => 'Ctrl+O', '^O',
-                 sub { process_file() },
+                 sub { open_file() },
              ],
              [
                  'Save ~As...' =>
@@ -151,77 +113,65 @@ $main = Prima::MainWindow->create(
           ],
          ],
      ],
+        ['~Run' =>
+         [
+             ['~Spectrogram',
+              sub { run_spectrogram() },
+          ],
+         ],
+     ],
     ],
     onClose => \&shutdown,
 );
-$main->hide;
 
-my $top = $main->insert(
-    Widget =>
-    backColor => hex('fff8e7'),
-    pack => { side => 'top', anchor => 'w', }
+my $file_ui = Audio::Aoede::UI::File->new(
+    parent => $main,
+    pack => { side => 'top', anchor => 'w', padx => 20, },
 );
 
-my $file_info = $top->insert(
-    Widget =>
-    ownerBackColor => 1,
-    pack => { side => 'left', padx => 20,}
-);
 
-$current_file_label = $file_info->insert(
-    Label =>
-    text => $path // '(no file)',
-    ownerBackColor => 1,
-    pack => { side => 'top', anchor => 'w', }
-);
-
-my $current_pos = 0;
-$pos_slider = $file_info->insert(
-    Slider =>
-    increment => 1,
-    min => 0,
-    max => 100,
-    size => [600,50],
-    autoTrack => 1,
-    ribbonStrip => 1,
-    ticks => [
-        { value => 60,
-          text => '1:00',
-      },
-        { value => 0,
-          text => '0:00',
-      }
-    ],
-    ownerBackColor => 1,
-    pack => { side => 'top', anchor => 'w', },
-    onChange => \&pos_slider_change,
-);
-
-sub adjust_slider($end) {
-    $current_pos = $end;
-    $pos_slider->value($end);
-    $pos_slider->repaint;
-    $pos_number->text(format_time($end));
-    $pos_number->repaint;
+sub open_file ($path = undef) {
+    busy('Open a file');
+    $path //= $file_ui->open_file;
+    if ($path) {
+        stop();
+        $current  = Audio::Aoede::File->new;
+        $current->set_sound($recorders{file}->read_file($path));
+        my $sound_time = $current->n_samples / $options{rate};
+        $file_ui->set_max_time($sound_time);
+        $key_play->enabled(1);
+        $timer->reset_time;
+    }
+    idle();
 }
 
-sub pos_slider_change ($widget) {
-    my $new = $widget->value;
-    if ($new != int $current_pos) {
-        # Change happened by user, not by timer
-        my $delta = $new - $current_pos;
-        $timer->shift_time($delta);
-        $current_pos = $widget->value;
-        $pos_number->text(format_time($current_pos));
-        $pos_number->repaint;
-        run_spectrum($current_pos);
+sub save_as {
+    my $path = $file_ui->save_as();
+    if ($path) {
+        my $writer = Audio::Aoede::Player::SoX->new(
+            rate => $options{rate},
+            bits => $options{bits},
+            channels => $options{channels},
+        );
+        $writer->play_piddle($current->sound,$path);
+        my ($vol,$dirs,$file) = File::Spec->splitpath($path);
+        $main->text("$title: $file");
     }
 }
 
-my $keys = $file_info->insert(
+sub update_position_by_ui ($value) {
+    if (int($current->position) != $value) {
+        my $delta = $value - $current->position;
+        $timer->shift_time($delta);
+        $current->set_position($value);
+        run_current_spectrum();
+    }
+}
+
+my $keys = $main->insert(
     Widget =>
     ownerBackColor => 1,
-    pack => { side => 'top', anchor => 'w', }
+    pack => { side => 'top', anchor => 'w', padx => 20, }
 );
 
 $key_record = $keys->insert(
@@ -234,64 +184,17 @@ $key_record = $keys->insert(
     },
 );
 
-
-sub playback ($end) {
-    my $first = $current_pos * $rate;
-    adjust_slider($end);
-    run_spectrum($end);
-    my $last  = int($end * $rate + 0.5) - 1;
-    if ($last >= $sound->dim(1)) {
-        $last = $sound->dim(1) - 1;
-    }
-    if ($last > $first) {
-        $player->send_piddle($sound->slice([0,1],[$first,$last]));
-    }
-    if ($last >= $sound->dim(1) - 1  &&  $state eq 'playing') {
-        stop();
-        &$auto_close;
-    }
-}
-
-sub play () {
-    $key_record->enabled(0);
-    $key_pause->enabled(1);
-    $key_stop->enabled(1);
-    $key_play->enabled(0);
-    $player->open_pipe;
-    $timer->add_callback( \&playback );
-    $timer->start;
-    $state = 'playing';
-}
-
 $key_play = $keys->insert(
     Button =>
     pack => { side => 'left' },
     text => symbol('PLAY'),
     enabled => 0,
     onClick => sub ($widget) {
-        play();
-    },
-);
-
-
-sub pause () {
-    $key_record->enabled(1);
-    $key_play->enabled(1);
-    $key_pause->enabled(0);
-    $key_stop->enabled(1);
-    $timer->pause();
-    $player->close_pipe;
-    $state = 'paused';
-    # show_state(); # uncomment for some debugging
-}
-
-$key_pause = $keys->insert(
-    Button =>
-    pack => { side => 'left' },
-    text => symbol('PAUSE'),
-    enabled => 0,
-    onClick => sub ($widget) {
-        pause();
+        if ($state  eq  'playing') {
+            pause();
+        } else {
+            play();
+        }
     },
 );
 
@@ -305,13 +208,47 @@ $key_stop = $keys->insert(
     },
 );
 
-$pos_number = $keys->insert(
-    Label =>
-    text => format_time($current_pos),
-    pack => { side => 'right', padx => 20 },
-);
+sub playback ($end) {
+    my $first = $current->position * $options{rate};
+    $current->set_position($end);
+    $file_ui->set_position($end);
+    run_current_spectrum();
+    my $last  = int($end * $options{rate} + 0.5) - 1;
+    if ($last >= $current->n_samples) {
+        $last = $current->n_samples - 1;
+    }
+    if ($last > $first) {
+        $player->send_piddle($current->sound->slice([0,1],[$first,$last]));
+    }
+    if ($last >= $current->n_samples - 1  &&  $state eq 'playing') {
+        stop();
+        &$auto_close;
+    }
+}
+
+sub play () {
+    $key_record->enabled(0);
+    $key_stop->enabled(1);
+    $key_play->text(symbol('PAUSE'));
+    $player->open_pipe;
+    $timer->add_callback( \&playback );
+    $spectrum_ui->show;
+    $timer->start;
+    $state = 'playing';
+}
 
 
+
+sub pause () {
+    $key_record->enabled(1);
+    $key_play->enabled(1);
+    $key_play->text(symbol('PLAY'));
+    $key_stop->enabled(1);
+    $timer->pause();
+    $player->close_pipe;
+    $state = 'paused';
+    # show_state(); # uncomment for some debugging
+}
 
 my $spectrum_w;
 $spectrum_w = $main->insert(
@@ -321,177 +258,116 @@ $spectrum_w = $main->insert(
     pack      => { side => 'top', expand => 1, fill => 'both' },
 );
 
-$spectrum = Audio::Aoede::UI::Spectrum->new(
+$spectrum_ui = Audio::Aoede::UI::Spectrum->new(
     parent => $spectrum_w,
     channels => [qw( left right )],
-    f_min => $f_min,
-    limit => $limit,
-    tuner_base => 440,
-    frequency_axis_type => sc::Log,
+    min_frequency => $options{min_frequency},
+    max_frequency => $options{max_frequency},
     size => [800,400],
     pack      => { side => 'left', expand => 1, fill => 'both' },
 );
 
-my $spectrum_options = $spectrum_w->insert(
-    Widget =>
-    ownerBackColor => 1,
-    pack => { side => 'left', padx => 10 },
-);
-
 my $config_ui = Audio::Aoede::UI::Spectre::Options->new(
-    parent => $spectrum_options,,
-    fps => $fps // $timer->fps,
-    fps_callback => sub ($fps) {
-        return unless $fps;
-        return if $fps <= 0; # Ignore empty or invalid input
-        $timer->set_fps ($fps)
-    },
-    resolution => $resolution,
-    resolution_callback => sub ($res) {
-        return unless $res;   # Ignore empty input
-        return if $res <= 0;  # Ignore invalid input
-        $resolution = $res;
-        run_spectrum($current_pos);
-    },
-    frequency_min => $f_min,
-    frequency_min_callback => sub ($new) {
-        return unless $new;     # Ignore empty or zero input
-        return if $new <= 0;
-        return unless $new <= 0.5 * $limit; # at least one octave
-        $f_min = $new;
-        $spectrum->set_frequency_min($new);
-        run_spectrum($current_pos);
-    },
-    frequency_limit => $limit,
-    frequency_limit_callback => sub ($new) {
-        return unless $new;     # Ignore empty or zero input
-        return unless $new >= 2*$f_min; # at least one octave
-        return if $new < 100;   # totally arbitrary
-        $limit = $new;
-        $spectrum->set_limit($new);
-        run_spectrum($current_pos);
-    },
-);
-
-my $axis_opt = $spectrum_options->insert(
-    GroupBox =>
-    text => 'Frequency axis',
-    pack => { side => 'top', padx => 10, anchor => 'w', },
-);
-
-$axis_opt->insert(
-    Widget =>
-    size => [1,20],
-    pack => { side => 'top', anchor => 'w', },
-);
-
-$axis_opt->insert(
-    Radio =>
-    name => 'linear',
-    onClick => sub { $spectrum->set_axis_linear },
-    ownerBackColor => 1,
-    pack      => { side => 'left', padx => 20, pady => 10, },
-);
-
-$axis_opt->insert(
-    Radio =>
-    name => 'logarithmic',
-    checked => 1,
-    onClick => sub { $spectrum->set_axis_logarithmic },
-    ownerBackColor => 1,
-    pack      => { side => 'left', padx => 20, pady => 10,},
-);
-
-my $tuner_area = $spectrum_options->insert(
-    Widget =>
-    ownerBackColor => 1,
-    pack => { side => 'top', anchor => 'w', },
-);
-
-my ($tuner,$tuner_label);
-$tuner_area->insert(
-    CheckBox =>
-    text => "Show halftone grid",
-    ownerBackColor => 1,
-    ownerBackColor => 1,
-    pack => { side => 'top', anchor => 'w', },
-    onClick => sub ($widget) {
-        if ($widget->checked) {
-            $tuner_label->show;
-            $tuner->show;
-            $spectrum->show_halftone_grid;
-        }
-        else {
-            $tuner_label->hide;
-            $tuner->hide;
-            $spectrum->hide_halftone_grid;
-        }
-        run_spectrum($current_pos);
-    }
-);
-
-$tuner_label = $tuner_area->insert(
-    Label =>
-    text => 'Fine tuning (cent)',
-    ownerBackColor => 1,
-    pack => { side => 'top' },
-    visible => 0,
-);
-
-$tuner = $tuner_area->insert(
-    CircularSlider =>
-    buttons => 1,
-    stdPointer => 1,
-    increment => 1,
-    min => -50,
-    max => 50,
-    onChange => sub ($widget) {
-        my $v = $widget->value;
-        $spectrum->set_tuner_base(440 * (2**($v/1200)));
-        run_spectrum($current_pos);
-    },
-    ownerBackColor => 1,
-    pack => { side => 'top', pady => 20, },
-    visible => 0,
+    parent => $spectrum_w,
+    pack => { side => 'left', padx => 10 },
 );
 
 
 sub run_spectrum ($end) {
     return unless $end; # just starting
-    return unless defined $left && $left->dim(0) > 0;
-    return unless $resolution;
-    return if $resolution <= 0;
-    my $n_spectrum_samples = int($rate/$resolution);
+    return unless $current->n_samples;
+    return unless $options{resolution};
+    return if $options{resolution} <= 0;
+    my $n_spectrum_samples = int($options{rate}/$options{resolution});
     my $window = PDL::DSP::Windows->new($n_spectrum_samples);
-    my $first = int($current_pos * $rate + 0.5) - $n_spectrum_samples;
+    my $first = int($current->position * $options{rate} + 0.5)
+        - $n_spectrum_samples;
     my $last  = $first + $n_spectrum_samples - 1;
-    if ($first >= 0  and  $last < $left->dim(0)) {
-        my $c_left = $left->slice([$first,$last]) * $window->samples;
-        my $s_left =  $A->spectrum($c_left,$limit);
-        my $c_right = $right->slice([$first,$last]) * $window->samples;
-        my $s_right = $A->spectrum($c_right,$limit);
-        $spectrum->update(left => $s_left, right => $s_right);
+    if ($first >= 0  and  $last < $current->n_samples) {
+        my $c_left = $current->channel(0)->slice([$first,$last]) * $window->samples;
+        my $s_left =  $A->spectrum($c_left,$options{max_frequency});
+        my $c_right = $current->channel(1)->slice([$first,$last]) * $window->samples;
+        my $s_right = $A->spectrum($c_right,$options{max_frequency});
+        $spectrum_ui->update(left => $s_left, right => $s_right);
     }
 }
 
+
+sub run_current_spectrum () {
+    return unless $current;
+    run_spectrum($current->position);
+}
+
+
+sub calculate_spectrogram ($sound) {
+    $options{min_frequency} >= 1  or  $options{min_frequency} = 1;
+    my $sum = $sound->sumover;
+    my $n_total_samples = $sum->dim(0);
+    my $n_times = $n_total_samples / $options{rate} * $options{fps};
+    return unless $n_times;     # nothing to do, silentl return
+    my $n_spectrum_samples = int($options{rate}/$options{resolution});
+    my $window = PDL::DSP::Windows->new($n_spectrum_samples);
+    my $window_samples = $window->samples;
+    my $d_samples = int (($n_total_samples - $n_spectrum_samples) / $n_times);
+    my $first = 0;
+    my $last = $n_spectrum_samples - 1;
+    my @spectra = ();
+    my $min_index = int ($options{min_frequency} / $options{resolution} + 0.999);
+    while ($last < $n_total_samples-1) {
+        my $windowed = $sum->slice([$first,$last]) * $window_samples;
+        my $spectrum = $A->spectrum($windowed,$options{max_frequency})->slice([$min_index,-1]);
+        push @spectra, $spectrum;
+        $first += $d_samples;
+        $last  += $d_samples;
+    }
+    return pdl(@spectra)->transpose;
+}
+
+
+sub run_spectrogram () {
+    my $spectrogram = calculate_spectrogram($current->sound);
+    return unless defined $spectrogram; # user cancelled
+    if ($spectrogram_ui) {
+        $spectrogram_ui->update_spectrogram($spectrogram);
+    }
+    else {
+        my $n_total_samples = $current->n_samples;
+        $spectrogram_ui = Audio::Aoede::UI::Spectrogram->new(
+            parent => $main,
+            time => $n_total_samples/$options{rate},
+            min_frequency => $options{min_frequency},
+            max_frequency => $options{max_frequency},
+        );
+        $spectrogram_ui->show_spectrogram($spectrogram);
+    }
+}
+
+
+sub update_spectrogram {
+    if ($spectrogram_ui) {
+        my $spectrogram = calculate_spectrogram($current->sound);
+        if (defined ($spectrogram)) {
+            $spectrogram_ui->update_spectrogram($spectrogram);
+        }
+    }
+}
+
+
 sub read_pipe ($end) {
-    my $n_samples = int ($rate * ($end-$current_pos) + 0.5);
+    my $n_samples = int ($options{rate} * ($end-$current->position) + 0.5);
     return if $n_samples <= 0;
     my $sound = $recorders{microphone}->read_pipe($n_samples);
-    $current_pos += $sound->dim(1)/$rate;
+    $current->add_time($sound->dim(1)/$options{rate});
     $player->send_piddle($sound);
-    my @channels = $sound->transpose->dog;
-    $left = defined $left ? $left->append($channels[0]) : $channels[0];
-    $right = defined $right ? $right->append($channels[1]) : $channels[1];
-    run_spectrum($end);
-    $pos_slider->max($end // 0);
-    $pos_slider->value($end);
-    $pos_slider->repaint;
+    $current->append_sound($sound);
+    $file_ui->set_max_time($end);
+    $file_ui->set_position($end);
+    run_current_spectrum;
 }
 
 
 sub record () {
-    if ($sound->dim(1)) {
+    if ($current) {
         use Prima::MsgBox qw( message );
         my $response = message_box(
             q(We have a sound),
@@ -499,18 +375,16 @@ sub record () {
             mb::Yes|mb::Cancel|mb::Question);
         return if ($response eq mb::Cancel);
         if ($response  eq  mb::Yes) {
-            $sound = zeroes(2,0);
-            $left = pdl([]);
-            $right = pdl([]);
         }
     }
-    $current_file_label->text("Recording...");
-    $current_file_label->repaint;
+    $current = Audio::Aoede::File->new();
+    $current->set_sound(zeroes(2,0));
+    $file_ui->recording;
     $main->text("$title");
     $key_record->enabled(0);
-    $key_pause->enabled(1);
     $key_stop->enabled(1);
     $key_play->enabled(0);
+    $key_play->text(symbol('PLAY'));
 
     $player->open_pipe;
     $recorders{microphone}->open_pipe;
@@ -525,32 +399,31 @@ sub record () {
 sub stop {
     $key_record->enabled(1);
     $key_play->enabled(1);
-    $key_pause->enabled(0);
+    $key_play->text(symbol('PLAY'));
     $key_stop->enabled(0);
-    adjust_slider(0);
+    $file_ui->set_position(0);
 
     if ($state eq 'playing') {
         $timer->stop;
         $player->close_pipe;
-        $spectrum->clear;
-        $current_pos = 0;
+        $spectrum_ui->clear;
+        $current->set_position(0);
     }
     elsif ($state eq 'paused') {
         $timer->reset_time;
         $player->close_pipe;
-        $spectrum->clear;
-        $current_pos = 0;
+        $spectrum_ui->clear;
+        $current->set_position(0);
     }
     elsif ($state eq 'recording') {
         $timer->stop;
         $recorders{microphone}->close_pipe;
         $player->close_pipe;
-        $spectrum->clear;
+        $spectrum_ui->clear;
         # Now allow for replay
-        $current_pos = 0;
-        $sound = (cat ($left,$right))->transpose;
-        my $sound_time = $sound->dim(1) / $rate;
-        $pos_slider->max($sound_time);
+        $current->set_position(0);
+        my $sound_time = $current->n_samples / $options{rate};
+        $file_ui->set_max_time($sound_time);
     }
     $state = 'idle';
     # show_state();
@@ -567,18 +440,13 @@ $::application->set(
             # terminate the application.  Show the GUI during the
             # process.
             $auto_close = sub { $::application->close };
-            $path = $run;
+            my $path = $run;
             $run = '';
-            $current_file_label->text("Playing: $path");
-            $current_file_label->repaint;
-            $sound = $recorders{file}->read_file($path);
-            ($left,$right) = $sound->transpose->dog;
-            my $sound_time = $left->dim(0) / $rate;
-            $pos_slider->max($sound_time);
-            $key_play->enabled(1);
-            $timer->reset_time;
+            open_file($path);
 	    $player->open_pipe;
+            $state = 'playing';
 	    $timer->add_callback(\&playback);
+            $spectrum_ui->show;
 	    $timer->start;
             $timer->reset_time;
         }
@@ -594,9 +462,9 @@ Prima->run;
 sub show_state {
     use Prima::MsgBox qw( message );
     my %state = (
-        'number of samples' => $sound->dim(1),
-        'current time'      => $current_pos,
-        'current sample'    => $current_pos * $rate,
+        'number of samples' => $current->sound->n_samples,
+        'current time'      => $current->position,
+        'current sample'    => $current->position * $options{rate},
     );
     my $formatted = join "\n",
         map { "$_ = $state{$_}" } sort keys %state;
@@ -609,16 +477,16 @@ sub build_recorders ($rate,$bits,$channels) {
     # This one is unconditionally required for now
     use Audio::Aoede::Recorder::SoX;
     $recorders{file} = Audio::Aoede::Recorder::SoX->new(
-        rate => $rate,
+        rate => $options{rate},
         bits => $bits,
         channels => $channels,
     );
     try {
         use Audio::Aoede::Recorder::PortAudio;
         $recorders{microphone} = Audio::Aoede::Recorder::PortAudio->new(
-            rate => $rate,
-            bits => $bits,
-            channels => $channels,
+            rate => $options{rate},
+            bits => $options{bits},
+            channels => $options{channels},
         );
     }
     catch ($error) {
@@ -634,4 +502,103 @@ sub build_recorders ($rate,$bits,$channels) {
 
 sub format_time ($time) {
     return sprintf("%02d:%05.2f",int($time/60),$time % 60);
+}
+
+
+sub get_config ($key) {
+    return $options{$key};
+}
+
+
+sub set_fps ($new) {
+    if ($new  and  $new =~ /^\s*(\d+(\.\d*)?|\.\d+)\s*$/ ) {
+        $options{fps} = $new;
+        $timer->set_fps($new);
+    }
+    else {
+        $new  and  die "Don't do that: FPS = '$new'";
+    }
+}
+
+
+sub set_resolution ($new) {
+    if ($new  and  $new =~ /^\s*\d+\s*$/) {
+        $options{resolution} = $new;
+        run_current_spectrum();
+    }
+    else {
+        $new  and  die "Don't do that: resolution = '$new'";
+    }
+}
+
+
+sub set_min_frequency ($new) {
+    if ($new  and  $new =~ /^\s*\d+\s*$/) {
+        $options{min_frequency} = $new;
+        $spectrum_ui->set_min_frequency($new);
+        if ($spectrogram_ui) {
+            $spectrogram_ui->set_min_frequency($new);
+        }
+        run_current_spectrum();
+    }
+    else {
+        $new  and  die "Don't do that: minimum frequency = '$new'";
+    }
+}
+
+
+sub set_max_frequency ($new) {
+    if ($new  and  $new =~ /^\s*\d+\s*$/) {
+        $options{max_frequency} = $new;
+        $spectrum_ui->set_max_frequency($new);
+        if ($spectrogram_ui) {
+            $spectrogram_ui->set_max_frequency($new);
+        }
+        run_current_spectrum();
+    }
+    else {
+        $new
+            and  $new <= 0.5 * $options{max_frequency}
+            and  die "Don't do that: maximum frequency = '$new'";
+    }
+}
+
+
+sub set_axis_linear () {
+    $spectrum_ui->set_axis_linear;
+}
+
+
+sub set_axis_logarithmic () {
+    $spectrum_ui->set_axis_logarithmic;
+}
+
+
+sub set_tuner_base ($new) {
+    $options{A4_pitch} = $new;
+    run_current_spectrum();
+}
+
+
+sub show_halftone_grid {
+    $spectrum_ui->show_halftone_grid;
+}
+
+
+sub hide_halftone_grid {
+    $spectrum_ui->hide_halftone_grid;
+}
+
+
+sub busy ($text) {
+    $busy_ui = Audio::Aoede::UI::Busy->new(
+        parent => $main,
+        text   => $text,
+    );
+}
+
+sub idle {
+    $busy_ui->destroy;
+    undef $busy_ui;
+    $main->focus;
 }

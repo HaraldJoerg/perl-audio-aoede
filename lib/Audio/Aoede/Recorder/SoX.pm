@@ -60,6 +60,10 @@ class Audio::Aoede::Recorder::SoX
             die "Error reading sound: '$!'" unless defined $got;
             last unless $got;
             $offset += $got;
+            {
+                no warnings 'once';
+                $::application->yield();
+            }
         }
         my $n_samples = length($data) * 8 / $bits / $channels;
         my $sound = short zeroes (2,$n_samples);
