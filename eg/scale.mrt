@@ -1,0 +1,3 @@
+!set  bpm = 120; tracks = 1;
+1/8:C4 D4 E4  F4 G4 A4  B4  C5     C4 E4  G4  C4 F4 A4   D4 G4 B4   E4  G4 C5   1/2:C4+E4+G4   C4+F4+A4    D4+G4+B4   E4+G4+C5
+1/8:C4 D4 Eb4 F4 G4 Ab4 Bb4 C5     C4 Eb4 G4  C4 F4 Ab4  D4 G4 B4   Eb4 G4 C5   1/2:C4+Eb4+G4  C4+F4+Ab4   D4+G4+B4   Eb4+G4+C5

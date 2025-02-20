@@ -1,0 +1,30 @@
+# A non-physical sound
+use feature 'signatures';
+no warnings 'experimental';
+use Audio::Aoede::Timbre;
+my $A = Audio::Aoede->new;
+my $rate = 44100;
+my $vibrato = $A->vibrato (width => 5, frequency => 3);
+my $tremolo = $A->tremolo (width => 0.2, frequency => 2);
+return (
+    {
+        timbre => Audio::Aoede::Timbre->new(
+            generator => Audio::Aoede::Generator::Sine->new(
+                vibrato => $vibrato,
+                tremolo => $tremolo,
+            ),
+            harmonics => [1.0,0.5,0.5,0.5,0.5,0.5,0.5,1.0,1.0],
+            effects => [
+                sub ($frequency) {
+                    return Audio::Aoede::Envelope::ADSR->new(
+                        attack  => 4800,
+                        decay   => $rate * $frequency/2000,
+                        sustain => 0.0,
+                        release => 3*$frequency,
+                    );
+                },
+            ]
+        ),
+        channels  => { left => 0.5, right => 0.5 },
+    }
+);
