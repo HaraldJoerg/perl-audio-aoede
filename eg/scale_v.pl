@@ -1,7 +1,6 @@
 use Audio::Aoede::Timbre::Vibraphone;
-my $rate = 44100;
 return (
-    { timbre    => Audio::Aoede::Timbre::Vibraphone::vibraphone($rate),
+    { timbre    => Audio::Aoede::Timbre::Vibraphone::vibraphone(),
       channels  => { left => 0.8, right => 0.2 },
   }
 );

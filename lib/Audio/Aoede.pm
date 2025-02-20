@@ -23,15 +23,9 @@ class Audio::Aoede {
 
     my $amplitude = 2**14;
 
+    my $A;
     ADJUST {
-        # if ($player eq 'sox') {
-        #     $player = Audio::Aoede::Player::SoX->new(
-        #         rate     => $rate,
-        #         bits     => $bits,
-        #         channels => $channels,
-        #         out      => $out // '--default',
-        #     );
-        # }
+        $A //= $self;
     }
 
     method rate {
@@ -165,7 +159,7 @@ class Audio::Aoede {
         require Audio::Aoede::Track;
         require Audio::Aoede::Timbre::Vibraphone;
         my $track = Audio::Aoede::Track->new
-            (timbre => Audio::Aoede::Timbre::Vibraphone::vibraphone($rate));
+            (timbre => Audio::Aoede::Timbre::Vibraphone::vibraphone());
         $track->add_notes(map {
             my ($chord,$duration) = @$_;
             my @pitches = map { note2pitch($_) } @$chord;
@@ -267,15 +261,19 @@ class Audio::Aoede {
         return sub ($frequency) {
             # We need to play around with this to find suitable values.
             # Maybe we could look it up somewhere?
-            my $samples_per_period = $rate / $frequency;
             # FIXME: The envelopes can be cached... or maybe not
             return Audio::Aoede::Envelope::ADSR->new(
-                attack  => int(2 * $samples_per_period),
-                decay   => int(400 * $samples_per_period),
+                attack  => (2 / $frequency),
+                decay   => (400 / $frequency),
                 sustain => 0.1,
-                release => int(50 * $samples_per_period),
+                release => (50 / $frequency),
             );
         }
+    }
+
+    sub instance ($class) {
+        $A //= $class->new();
+        return $A;
     }
 }
 

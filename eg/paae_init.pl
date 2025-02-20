@@ -6,7 +6,6 @@ no warnings 'experimental';
 use Audio::Aoede::Timbre::Vibraphone;
 
 my $A = Audio::Aoede->new;
-my $rate = 44100;
 my $vibrato = $A->vibrato (width => 0.0, frequency => 3);
 my $tremolo = $A->tremolo (width => 0.05, frequency => 2);
 
@@ -19,10 +18,10 @@ my $t_organ = Audio::Aoede::Timbre->new(
     effects => [
         sub ($frequency) {
             return Audio::Aoede::Envelope::ADSR->new(
-                attack  => 1200,
+                attack  => 1/50,
                 decay   => 0,
                 sustain => 1,
-                release => 100,
+                release => 1/500,
             );
         }
     ]
@@ -37,10 +36,10 @@ my $t_organ2 = Audio::Aoede::Timbre->new(
     effects => [
         sub ($frequency) {
             return Audio::Aoede::Envelope::ADSR->new(
-                attack  => 1200,
+                attack  => 1/50,
                 decay   => 0,
                 sustain => 1,
-                release => 100,
+                release => 1/500,
             );
         }
     ]
@@ -54,10 +53,10 @@ my $t_gnomus = Audio::Aoede::Timbre->new(
     effects => [
         sub ($frequency) {
             return Audio::Aoede::Envelope::ADSR->new(
-                attack  => 100,
-                decay   => 50000,
+                attack  => 1/500,
+                decay   => 1,
                 sustain => 0.0,
-                release => 10000,
+                release => 1/4,
             );
         }
     ]
@@ -71,10 +70,10 @@ my $t5 = Audio::Aoede::Timbre->new(
     effects => [
         sub ($frequency) {
             return Audio::Aoede::Envelope::ADSR->new(
-                attack  => 100,
-                decay   => $rate * 2400/$frequency,
+                attack  => 1/500,
+                decay   => 2400/$frequency,
                 sustain => 0,
-                release => $rate/2,
+                release => 1/2,
             );
         }
     ]
@@ -84,7 +83,7 @@ my $t5 = Audio::Aoede::Timbre->new(
 
 my @res =
 (
-    { timbre    => Audio::Aoede::Timbre::Vibraphone::vibraphone($rate),
+    { timbre    => Audio::Aoede::Timbre::Vibraphone::vibraphone(),
       channels  => { left => 3.0, right => 1.0 },
   },
     { timbre => $t_organ,

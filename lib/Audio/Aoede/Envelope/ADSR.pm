@@ -7,6 +7,7 @@ no warnings 'experimental';
 
 class Audio::Aoede::Envelope::ADSR {
     use PDL;
+    use Audio::Aoede;
 
     field $attack  :param = 0;
     field $decay   :param = 0;
@@ -19,18 +20,33 @@ class Audio::Aoede::Envelope::ADSR {
     # FIXME: We can get a concave decay with a formula like this:
     # $s = zeroes(10)->xlinvals((1-$sustain)**0.5,0)->pow(2)+$sustain
     ADJUST {
+        my $rate = Audio::Aoede->instance->rate;
         # Convert numbers of samples to 1D PDL arrays
-        $attack_samples  = int $attack ?
-            ((sequence($attack) + 1) / $attack) :
-            undef;
-        $decay_samples   = int $decay ?
-            zeroes($decay)->xlinvals(($decay-1)/$decay,$sustain) :
-            undef;
+        if ($attack) {
+            $attack = int ($attack * $rate);
+            $attack_samples  = (sequence($attack) + 1) / $attack;
+        } else {
+            $attack_samples = undef;
+        }
+
+        if ($decay) {
+            $decay = int ($decay * $rate);
+            $decay_samples = zeroes($decay)->xlinvals(($decay-1)/
+                                                      $decay,$sustain);
+        } else {
+            $decay_samples = undef;
+        }
+
         # $release needs to be adjusted to the actual amplitude
         # at the time of releasing
-        $release_samples = $release ?
-            zeroes($release)->xlinvals(($release-1)/$release,0) :
-            undef;
+        if ($release) {
+            $release = int ($release * $rate);
+            $release_samples = zeroes($release)->xlinvals(($release-1)/
+                                                          $release,0);
+        }
+        else {
+            $release_samples = undef;
+        }
     }
 
     method apply ($samples,$offset) {

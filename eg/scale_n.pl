@@ -17,10 +17,10 @@ return (
             effects => [
                 sub ($frequency) {
                     return Audio::Aoede::Envelope::ADSR->new(
-                        attack  => 4800,
-                        decay   => $rate * $frequency/2000,
+                        attack  => 1/10,
+                        decay   => $frequency/2000,
                         sustain => 0.0,
-                        release => 3*$frequency,
+                        release => $frequency/1500,
                     );
                 },
             ]

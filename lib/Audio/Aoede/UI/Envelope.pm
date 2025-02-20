@@ -10,10 +10,10 @@ class Audio::Aoede::UI::Envelope {
     field $trigger :param;
     field $widget;
     field %adsr = (
-        attack => 0,
+        attack => 1/500,
         decay  => 0,
         sustain => 1,
-        release => 0,
+        release => 1/500,
     );
 
     # This should eventually go into a role

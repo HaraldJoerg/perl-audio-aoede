@@ -23,16 +23,16 @@ my $t_organ = Audio::Aoede::Timbre->new(
     effects => [
         sub ($frequency) {
             return Audio::Aoede::Envelope::ADSR->new(
-                attack  => 200,
-                decay   => $rate,
+                attack  => 1/200,
+                decay   => 1,
                 sustain => 0,
-                release => 100,
+                release => 1/500,
             );
         }
     ]
 );
 
-my $t_vibra = Audio::Aoede::Timbre::Vibraphone::vibraphone($rate);
+my $t_vibra = Audio::Aoede::Timbre::Vibraphone::vibraphone();
 
 my $t_h_effect = Audio::Aoede::Timbre->new(
     generator => Audio::Aoede::Generator::Sine->new(),
@@ -43,15 +43,15 @@ my $t_h_effect = Audio::Aoede::Timbre->new(
                 frequency => $frequency,
                 intensity => 0.1,
                 width => 1.5,
-                duration => 5000,
+                duration => 1/10,
             )
         },
         sub ($frequency) {
             return Audio::Aoede::Envelope::ADSR->new(
-                attack  => 100,
-                decay   => $rate,
+                attack  => 1/500,
+                decay   => 1,
                 sustain => 0,
-                release => 10000,
+                release => 2,
             );
         }
     ]

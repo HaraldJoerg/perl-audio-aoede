@@ -16,10 +16,10 @@ my $t_back_organ = Audio::Aoede::Timbre->new(
     effects => [
         sub ($frequency) {
             return Audio::Aoede::Envelope::ADSR->new(
-                attack  => 1200,
-                decay   => 2*$rate,
+                attack  => 1/40,
+                decay   => 2,
                 sustain => 0.1,
-                release => 100,
+                release => 1/500,
             );
         }
     ]
@@ -30,10 +30,10 @@ my $t_back_guitar = Audio::Aoede::Timbre->new(
     effects => [
         sub ($frequency) {
             return Audio::Aoede::Envelope::ADSR->new(
-                attack  => 100,
-                decay   => $rate * 2400/$frequency,
+                attack  => 1/500,
+                decay   => 2400/$frequency,
                 sustain => 0,
-                release => $rate/4,
+                release => 1/4,
             );
         }
     ]
@@ -44,10 +44,10 @@ my $t_melody_organ = Audio::Aoede::Timbre->new(
     effects => [
         sub ($frequency) {
             return Audio::Aoede::Envelope::ADSR->new(
-                attack  => 1200,
-                decay   => 2*$rate,
+                attack  => 1/40,
+                decay   => 2,
                 sustain => 0.3,
-                release => 100,
+                release => 1/500,
             );
         }
     ]
@@ -58,10 +58,10 @@ my $t_melody_voice = Audio::Aoede::Timbre->new(
     effects => [
         sub ($frequency) {
             return Audio::Aoede::Envelope::ADSR->new(
-                attack  => 1200,
-                decay   => 4*$rate,
+                attack  => 1/40,
+                decay   => 4,
                 sustain => 0.3,
-                release => 100,
+                release => 1/500,
             );
         }
     ]

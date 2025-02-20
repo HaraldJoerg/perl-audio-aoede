@@ -97,10 +97,10 @@ my $tuner = Audio::Aoede::UI::Tuner->new();
 $tuner->insert_to($main);
 
 my $envelope = Audio::Aoede::Envelope::ADSR->new(
-    attack => 0,
-    decay  => 10000,
-    sustain => 0,
-    release => 10000,
+    attack => 1/500,
+    decay  => 0,
+    sustain => 1,
+    release => 1/500,
 );
 my $envelope_ui = Audio::Aoede::UI::Envelope->new(
     trigger => sub (%adsr) {

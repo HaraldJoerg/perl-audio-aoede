@@ -53,10 +53,10 @@ my $timbre_perc = Audio::Aoede::Timbre->new(
     effects => [
         sub ($frequency) {
             return Audio::Aoede::Envelope::ADSR->new(
-                attack  => 100,
-                decay   => $rate * 2400/$frequency,
+                attack  => 1/500,
+                decay   => 2400/$frequency,
                 sustain => 0.0,
-                release => $rate/2,# * 200/$frequency,
+                release => 1/2,# * 200/$frequency,
             );
         },
         sub ($frequency) {
@@ -73,10 +73,10 @@ $timbre_sine->set_harmonics(1);
 $timbre_sine->add_effects(
     sub ($frequency ) {
         return Audio::Aoede::Envelope::ADSR->new(
-            attack  => 100,
+            attack  => 1/500,
             decay   => 0,
             sustain => 1.0,
-            release => 100,
+            release => 1/500,
         );
     }
 );
