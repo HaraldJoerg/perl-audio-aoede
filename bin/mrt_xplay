@@ -61,7 +61,7 @@ my $timbre_perc = Audio::Aoede::Timbre->new(
         },
         sub ($frequency) {
             Audio::Aoede::Effects::Percussive->generate(
-                4*$frequency,5*$frequency,$rate/2
+                4*$frequency,5*$frequency,1/2
             );
         },
     ],

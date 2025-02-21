@@ -9,6 +9,7 @@ class Audio::Aoede::Effects::Percussive;
 
 use PDL;
 
+use Audio::Aoede;
 use Audio::Aoede::Noise;
 
 field $frequency :param;
@@ -18,12 +19,14 @@ field $intensity :param;
 field $noise;
 
 ADJUST {
+    my $rate = Audio::Aoede->instance->rate;
+    $duration = int ($rate * $duration); # Switch from seconds to samples
     my $dummy = zeroes($duration);
     my $amplitude = $dummy->xlinvals(1.0,0.0) * $intensity;
     $noise = Audio::Aoede::Noise->gaussian(
         frequency => $frequency,
         width     => $width,
-    )->samples($duration,0) * $amplitude;;
+    )->samples($duration,0) * $amplitude;
 }
 
 
