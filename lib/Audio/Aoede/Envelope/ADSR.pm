@@ -169,10 +169,10 @@ Audio::Aoede::Envelope::ADSR - a "classic" volume envelope
 
   use Audio::Aoede::Envelope::ADSR;
   $envelope = Audio::Aoede::Envelope::ADSR->new(
-      attack  => $attack_samples,
-      decay   => $decay_samples,
+      attack  => $attack_time,
+      decay   => $decay_time,
       sustain => $sustain_level,
-      release => $release_samples,
+      release => $release_time,
   );
   my ($modified,$carry) = $envelope->apply($samples);
 
@@ -183,9 +183,6 @@ a sound changes over time".  A plucked guitar string creates an
 initial sound almost immediately, and then continually fades away
 until zero, or until mechanically damped by the player.
 
-This class uses the number of samples as a unit of time to avoid
-off-by-one errors when adding floating point values.
-
 The most common envelope generators, called ADSR generators for fairly
 obvious reasins, are controlled with four parameters:
 
@@ -193,13 +190,13 @@ obvious reasins, are controlled with four parameters:
 
 =item Attack
 
-The number of samples between the sound starts and reaches its full
+The number of seconds between the sound starts and reaches its full
 peak.  The attack time is low for a piano or guitar, but may be
 audible for a wind organ or a glass harp.
 
 =item Decay
 
-The number of samples between the sound at its peak and its sustain
+The number of seconds between the sound at its peak and its sustain
 level.
 
 =item Sustain
@@ -211,7 +208,7 @@ the sustain value of wind instruments is close to one.
 
 =item Release
 
-The number of samples between the end of a note being played and its
+The number of seconds between the end of a note being played and its
 sound reaching zero.
 
 =back
@@ -225,16 +222,23 @@ sound reaching zero.
 Creates a new envelope object.  The constructor parameters are
 C<attack>, C<decay>, C<sustain> and C<release>, their purpose is
 explained in the L<description|/#DESCRIPTION>.  C<attack>, C<decay>
-and C<release>, are given in sample numbers, C<sustain> does not carry
+and C<release>, are given in seconds, C<sustain> does not carry
 a unit.
 
 =item C<< ($mod_samples,$carry) = $env->apply($samples) >>
 
 Apply the envelope to C<$samples>.  Returns an array of two 1D PDL
-arrays: The first array has the same dimension as the input array,
-and the second has the dimension C<$release_samples>.
+arrays: The first array has the same dimension as the input array, and
+the second has a dimension depending on the release time and the
+sample rate.
 
 =back
+
+=head1 RESTRICTIONS
+
+This module needs the sample rate available from an L<Audio::Aoede>
+instance.  I am not yet decided how I want the sample rate to be
+passed between the Audio::Aoede modules.
 
 =head1 AUTHOR
 
@@ -242,7 +246,7 @@ Harald Jörg, E<lt>haj@posteo.deE<gt>
 
 =head1 COPYRIGHT AND LICENSE
 
-Copyright 2024 Harald Jörg
+Copyright 2024-2025 Harald Jörg
 
 This module is free software; you may redistribute it and/or modify it
 under the same terms as Perl itself.
