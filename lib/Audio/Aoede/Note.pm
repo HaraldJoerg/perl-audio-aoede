@@ -60,6 +60,17 @@ sub from_spn ($class,$spn) {
 }
 
 
+method set_duration ($new) {
+    $duration = $new;
+    return $self;
+}
+
+
+method set_octave ($new) {
+    $octave = $new;
+    return $self;
+}
+
 method midi_number {
     $octave  or  croak("Error: MIDI numbers need an octave");
     return $diatonic_intervals{uc $name}

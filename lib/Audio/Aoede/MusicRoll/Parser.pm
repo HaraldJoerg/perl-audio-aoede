@@ -13,8 +13,8 @@ use Carp;
 
 use Audio::Aoede::MusicRoll;
 use Audio::Aoede::MusicRoll::Section;
+use Audio::Aoede::Chord;
 use Audio::Aoede::Note;
-use Audio::Aoede::Notes;
 use Audio::Aoede::Track;
 use Audio::Aoede::Units qw( A440 HALFTONE );
 
@@ -181,28 +181,25 @@ sub parse_file ($path) {
                     $previous_duration = $duration;
                     if ($+{notes}) {
                         my @notes = split /\+/,$+{notes};
-                        my @n = map {
-                            Audio::Aoede::Note->from_spn($_)
+                        my @note_objects = map {
+                            my $note = Audio::Aoede::Note->from_spn($_);
+                            # SMELL: Why is an undefined octave the empty string?
+                            if ((my $octave = $note->octave) ne '') {
+                                $previous_octave = $octave;
+                            }
+                            else {
+                                $note->set_octave($previous_octave);
+                            }
+                            $note;
                         } @notes;
-                        my @pitches = map {
-                            m/(?<base>[A-G])
-                              (?<modifier>[b♭#♯]*) #
-                              (?<octave>[\d]|-1)?
-                             /ix;
-                            my $octave = $+{octave} // $previous_octave;
-                            my $number = $diatonic_notes{$+{base}}
-                                + $diatonic_modifiers{$+{modifier}}
-                                + ($octave+1) * 12;
-                            $previous_octave = $octave;
-                            my $pitch = A440 * (HALFTONE**($number-69));
-                        } @notes;
-                        $note = Audio::Aoede::Notes->new(
+                        $note = Audio::Aoede::Chord->new(
+                            notes => [@note_objects],
                             duration => $duration,
-                            pitches  => \@pitches,
                         );
                     } else {
                         # No note => Treat it as a rest
-                        $note = Audio::Aoede::Notes->new(
+                        $note = Audio::Aoede::Chord->new(
+                            notes => [],
                             duration => $duration,
                         );
                     }

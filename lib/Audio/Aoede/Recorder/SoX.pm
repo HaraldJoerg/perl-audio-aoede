@@ -99,7 +99,6 @@ class Audio::Aoede::Recorder::SoX
 
 
     method open_pipe {
-        say "*** opening a pipe";
         $pid = open ($handle,'-|',
               $sox,
               '--no-show-progress',

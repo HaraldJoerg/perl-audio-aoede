@@ -10,9 +10,8 @@ use feature "try";
 no warnings "experimental";
 
 use Getopt::Long;
-use File::Spec;
 use Prima::noARGV;
-use Prima qw( Application Dialog::FileDialog Sliders Spinner);
+use Prima 1.76 qw( Application Dialog::FileDialog Sliders Spinner);
 use Prima::MsgBox qw(message);
 use PDL;
 use PDL::DSP::Windows;
@@ -40,13 +39,13 @@ $::application->name($title);
 ######################################################################
 # Configuration, some hardwired right now
 my %options = (
-    fps           => 20,
+    fps           => 10,
     rate          => 48000,     # we have ~800 samples per second
     bits          => 16,        # fixed in the current implementation
     channels      => 2,         # fixed in the current implementation
     min_frequency => 50,
     max_frequency => 2500,
-    resolution    => 20,
+    resolution    => 10,
     axis_type     => sc::Log,
     A4_pitch      => 440,
 );
@@ -121,7 +120,6 @@ my $main = Prima::MainWindow->create(
          ],
      ],
     ],
-    onClose => \&shutdown,
 );
 
 my $file_ui = Audio::Aoede::UI::File->new(
@@ -135,12 +133,17 @@ sub open_file ($path = undef) {
     $path //= $file_ui->open_file;
     if ($path) {
         stop();
-        $current  = Audio::Aoede::File->new;
+        $current  = Audio::Aoede::File->new(path => $path);
+        $main->text("$title: " . $current->file_name);
+        # A lot of the following oughta go to AA::File
         $current->set_sound($recorders{file}->read_file($path));
         my $sound_time = $current->n_samples / $options{rate};
-        $file_ui->set_max_time($sound_time);
+        $current->set_duration($sound_time);
+        $file_ui->set_duration($sound_time);
+        $file_ui->set_current_file($current); # I'd like to get rid of
+                                              # that coupling
+        $file_ui->set_label($current->file_name);
         $key_play->enabled(1);
-        $timer->reset_time;
     }
     idle();
 }
@@ -154,19 +157,11 @@ sub save_as {
             channels => $options{channels},
         );
         $writer->play_piddle($current->sound,$path);
-        my ($vol,$dirs,$file) = File::Spec->splitpath($path);
-        $main->text("$title: $file");
+        $current->set_path($path);
+        $main->text("$title: " . $current->file_name);
     }
 }
 
-sub update_position_by_ui ($value) {
-    if (int($current->position) != $value) {
-        my $delta = $value - $current->position;
-        $timer->shift_time($delta);
-        $current->set_position($value);
-        run_current_spectrum();
-    }
-}
 
 my $keys = $main->insert(
     Widget =>
@@ -208,18 +203,18 @@ $key_stop = $keys->insert(
     },
 );
 
-sub playback ($end) {
-    my $first = $current->position * $options{rate};
-    $current->set_position($end);
-    $file_ui->set_position($end);
+sub playback ($delta) {
+    my $first = int($current->position * $options{rate} + 0.5) ;
+    my $last  = $first + int($delta * $options{rate} + 0.5 ) - 1;
+    $current->increment_position($delta);
     run_current_spectrum();
-    my $last  = int($end * $options{rate} + 0.5) - 1;
     if ($last >= $current->n_samples) {
         $last = $current->n_samples - 1;
     }
     if ($last > $first) {
-        $player->send_piddle($current->sound->slice([0,1],[$first,$last]));
+        $player->send_piddle($current->sound->slice([],[$first,$last]));
     }
+    $file_ui->update_position();
     if ($last >= $current->n_samples - 1  &&  $state eq 'playing') {
         stop();
         &$auto_close;
@@ -236,6 +231,7 @@ sub play () {
     $timer->start;
     $state = 'playing';
 }
+
 
 
 
@@ -276,8 +272,7 @@ my $config_ui = Audio::Aoede::UI::Spectre::Options->new(
 sub run_spectrum ($end) {
     return unless $end; # just starting
     return unless $current->n_samples;
-    return unless $options{resolution};
-    return if $options{resolution} <= 0;
+    return unless $options{resolution} > 0;
     my $n_spectrum_samples = int($options{rate}/$options{resolution});
     my $window = PDL::DSP::Windows->new($n_spectrum_samples);
     my $first = int($current->position * $options{rate} + 0.5)
@@ -353,15 +348,15 @@ sub update_spectrogram {
 }
 
 
-sub read_pipe ($end) {
-    my $n_samples = int ($options{rate} * ($end-$current->position) + 0.5);
+sub read_pipe ($delta) {
+    my $n_samples = int ($options{rate} * $delta + 0.5);
     return if $n_samples <= 0;
     my $sound = $recorders{microphone}->read_pipe($n_samples);
-    $current->add_time($sound->dim(1)/$options{rate});
+    $current->increment_position($delta);
     $player->send_piddle($sound);
     $current->append_sound($sound);
-    $file_ui->set_max_time($end);
-    $file_ui->set_position($end);
+    $file_ui->set_duration($current->position);
+    $file_ui->set_position($current->position);
     run_current_spectrum;
 }
 
@@ -389,7 +384,6 @@ sub record () {
     $player->open_pipe;
     $recorders{microphone}->open_pipe;
     $timer->add_callback(\&read_pipe);
-    $timer->reset_time;
     # show_state();
     $timer->start;
     $state = 'recording';
@@ -401,19 +395,19 @@ sub stop {
     $key_play->enabled(1);
     $key_play->text(symbol('PLAY'));
     $key_stop->enabled(0);
-    $file_ui->set_position(0);
 
     if ($state eq 'playing') {
         $timer->stop;
         $player->close_pipe;
         $spectrum_ui->clear;
         $current->set_position(0);
+        $file_ui->set_position(0);
     }
     elsif ($state eq 'paused') {
-        $timer->reset_time;
         $player->close_pipe;
         $spectrum_ui->clear;
         $current->set_position(0);
+        $file_ui->set_position(0);
     }
     elsif ($state eq 'recording') {
         $timer->stop;
@@ -424,14 +418,12 @@ sub stop {
         $current->set_position(0);
         my $sound_time = $current->n_samples / $options{rate};
         $file_ui->set_max_time($sound_time);
+        $file_ui->set_position(0);
     }
     $state = 'idle';
     # show_state();
 }
 
-sub shutdown {
-#    $::application->close;
-}
 
 $::application->set(
     'onIdle' => sub {
@@ -441,6 +433,7 @@ $::application->set(
             # process.
             $auto_close = sub { $::application->close };
             my $path = $run;
+            $current = Audio::Aoede::File->new(path => $path);
             $run = '';
             open_file($path);
 	    $player->open_pipe;
@@ -448,7 +441,6 @@ $::application->set(
 	    $timer->add_callback(\&playback);
             $spectrum_ui->show;
 	    $timer->start;
-            $timer->reset_time;
         }
     }
 );
@@ -515,9 +507,12 @@ sub set_fps ($new) {
         $options{fps} = $new;
         $timer->set_fps($new);
     }
-    else {
-        $new  and  die "Don't do that: FPS = '$new'";
-    }
+    # We should warn and indicate bad values here
+}
+
+
+sub resolution () {
+    return $options{resolution};
 }
 
 
@@ -533,7 +528,11 @@ sub set_resolution ($new) {
 
 
 sub set_min_frequency ($new) {
-    if ($new  and  $new =~ /^\s*\d+\s*$/) {
+    if ($new > 0 and  $new =~ /^\s*\d+\s*$/) {
+        if ($new > $options{max_frequency} - 3 * $options{resolution}) {
+            $new = $options{max_frequency} - 3 * $options{resolution};
+            $new = 1 if $new < 1;
+        }
         $options{min_frequency} = $new;
         $spectrum_ui->set_min_frequency($new);
         if ($spectrogram_ui) {
@@ -541,14 +540,14 @@ sub set_min_frequency ($new) {
         }
         run_current_spectrum();
     }
-    else {
-        $new  and  die "Don't do that: minimum frequency = '$new'";
-    }
 }
 
 
 sub set_max_frequency ($new) {
     if ($new  and  $new =~ /^\s*\d+\s*$/) {
+        if ($new < $options{min_frequency} + 3 * $options{resolution}) {
+            $new = $options{min_frequency} + 3 * $options{resolution};
+        }
         $options{max_frequency} = $new;
         $spectrum_ui->set_max_frequency($new);
         if ($spectrogram_ui) {

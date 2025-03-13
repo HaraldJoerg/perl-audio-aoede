@@ -9,15 +9,13 @@ no warnings 'experimental';
 class Audio::Aoede::UI::Timer;
 
 use builtin qw( refaddr );
-use Time::HiRes qw( gettimeofday tv_interval );
+use Time::HiRes qw( gettimeofday tv_interval time);
 
 field $fps :param :reader;
 field $timer;
 field %callbacks;
-field $offset;
-field $start_time;
-field $current_t;
-field $clear_callbacks;
+field $timer_stopping;
+field $previous_time;
 
 ADJUST {
     no warnings 'once';
@@ -34,36 +32,26 @@ method add_callback ($coderef) {
 }
 
 
-method reset_time () {
-    $offset = 0;
-}
 
 
 method start () {
-    $start_time = [gettimeofday];
-    $clear_callbacks = 0;
+    $previous_time = time;
+    $timer_stopping = 0;
     $timer->start;
 }
 
 
 method pause () {
-    $clear_callbacks = 1;
+    $timer_stopping = 1;
     $timer->stop;
-    $offset = $current_t;
     %callbacks = ();
 }
 
 
 method stop () {
-    $clear_callbacks = 1;
+    $timer_stopping = 1;
     $timer->stop;
-    $offset = 0;
     %callbacks = ();
-}
-
-
-method shift_time ($by) {
-    $offset += $by;
 }
 
 
@@ -73,10 +61,11 @@ method set_fps ($fps) {
 
 
 method tick {
-    return if $clear_callbacks;
-    $current_t = $offset + tv_interval($start_time);
+#    return if $timer_stopping;
+    my $now = time;
     for my $callback (values %callbacks) {
-        $callback->($current_t);
+        $callback->($now-$previous_time);
     }
+    $previous_time = $now;
 }
 1;

@@ -7,6 +7,7 @@ use feature 'signatures';
 no warnings 'experimental';
 
 class Audio::Aoede {
+    use Carp;
     use File::Temp;
     use PDL 2.099;
     use List::Util();
@@ -20,12 +21,24 @@ class Audio::Aoede {
     field $channels = 1;
     field $bits = 16;
     field $out    :param = undef;
+    field $tuning :param = 'equal';
 
     my $amplitude = 2**14;
 
     my $A;
     ADJUST {
         $A //= $self;
+        # load_module is only available in 5.40, so do it the old way
+        # Also, we do not yet really support other tuning systems,
+        # but we accept any blessed junk which is ... rather sloppy.
+        if (! builtin::blessed($tuning)) {
+            my $tuning_module = "Audio::Aoede::Tuning::" . ucfirst $tuning;
+            eval "use $tuning_module";
+            if ($@) {
+                croak "Could not use the tuning module '$tuning_module': '$@'";
+            }
+            $tuning = $tuning_module->new;
+        }
     }
 
     method rate {
@@ -86,9 +99,12 @@ class Audio::Aoede {
         for my $section ($music_roll->sections) {
             my $i_track = 0;
             for my $track ($section->tracks) {
-                if (! $voices[$i_track]) {
+                require Audio::Aoede::Timbre::Vibraphone;
+                $track->set_timbre(Audio::Aoede::Timbre::Vibraphone::vibraphone());
+               if (! $voices[$i_track]) {
                     $voices[$i_track] =
-                    Audio::Aoede::Voice->new(rate => $rate);
+                        Audio::Aoede::Voice->new(rate => $rate,
+                                                 tuning => $tuning);
                     $n_samples  and do {
                         $voices[$i_track]->add_samples(zeroes($n_samples));
                     };
@@ -151,24 +167,14 @@ class Audio::Aoede {
         return $warped;
     }
 
-    # FIXME+FIXME: It is currently unused and also broken since tracks
-    # are now objects and not array references.
     method play_notes (@notes) {
-        use Audio::Aoede::Tuning::Equal qw(note2pitch);
-        require Audio::Aoede::Notes; # FIXME!!!
         require Audio::Aoede::Track;
         require Audio::Aoede::Timbre::Vibraphone;
         my $track = Audio::Aoede::Track->new
             (timbre => Audio::Aoede::Timbre::Vibraphone::vibraphone());
-        $track->add_notes(map {
-            my ($chord,$duration) = @$_;
-            my @pitches = map { note2pitch($_) } @$chord;
-            Audio::Aoede::Notes->new(
-                duration => $duration,
-                pitches =>  [map { note2pitch($_) } @$chord],
-            )
-        } @notes);
-        my $voice =  Audio::Aoede::Voice->new(rate => $rate);
+        $track->add_notes(@notes);
+        my $voice =  Audio::Aoede::Voice->new(rate => $rate,
+                                              tuning => $tuning);
         $voice->add_notes($track);
         my $samples = $voice->samples->append($voice->carry);
         $self->write($samples);

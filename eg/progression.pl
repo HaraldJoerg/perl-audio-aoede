@@ -5,14 +5,14 @@ use experimental qw(for_list);
 no warnings 'experimental';
 
 use Audio::Aoede;
+use Audio::Aoede::Chord;
 use Audio::Aoede::Note;
 use Music::Chord::Progression;
 use Music::Scales qw( get_scale_notes );
 use PDL;
 
-my $A = Audio::Aoede->new(out => 'progression.ogg');
-my $duration = 1/4;
 my @melody;
+my $duration = 1/4;
 
 # get 4 notes of the C pentatonic scale
 my @pitches = get_scale_notes('C', 'pentatonic');
@@ -24,6 +24,12 @@ for my $note (@notes) {
         scale_note => $note,
     );
     my $chords = $prog->generate;
-    push @melody, map { [map { Audio::Aoede::Note->from_spn($_) } @$_ ] } @$chords;
+    push @melody, map {
+        Audio::Aoede::Chord->new(
+            notes => [map { Audio::Aoede::Note->from_spn($_) } @$_ ],
+            duration => $duration,
+        );
+    } @$chords;
 }
-$A->play_notes(map { [$_,$duration] } @melody);
+my $A = Audio::Aoede->new();#out => 'progression.ogg');
+$A->play_notes(@melody);

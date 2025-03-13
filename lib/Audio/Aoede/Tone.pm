@@ -45,7 +45,7 @@ method sequence ($rate,$bpm) {
             next OVERTONE unless $harmonic;
             $index += 1;
             my $resonance = $index * $index;
-            push  @overtones, Audio::Aoede::Source->new(
+            push @overtones, Audio::Aoede::Source->new(
                 rate => $rate,
                 volume => $harmonic,
                 function => $generator->function($index * $frequency),

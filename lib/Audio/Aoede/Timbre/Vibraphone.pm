@@ -9,7 +9,7 @@ use Audio::Aoede::Envelope::ADSR;
 
 sub vibraphone () {
     return Audio::Aoede::Timbre->new(
-        harmonics => [1,1/2,1/3,1/2,0.0,0.0,0,1/2,(0)x7,1/2,(0)x15,0],
+        harmonics => [1,1/2,1/3,1/2,0.0,0.0,0,1/2,(0)x7,1/2,(0)x15,1/2],
         effects => [
             sub ($frequency ) {
                 return Audio::Aoede::Envelope::ADSR->new(

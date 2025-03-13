@@ -13,7 +13,8 @@ class Audio::Aoede::Voice {
 
     field $samples = pdl([]);
     field $carry   = pdl([]);
-    field $rate :param;
+    field $rate   :param;
+    field $tuning :param = undef;
 
     my %dynamics = (
         fff => 1.0,
@@ -26,14 +27,22 @@ class Audio::Aoede::Voice {
         ppp => 0.1
     );
 
+    ADJUST {
+        if (! defined $tuning) {
+            require Audio::Aoede::Tuning::Equal;
+            $tuning = Audio::Aoede::Tuning::Equal->new;
+        }
+    }
+
     method add_notes($track,$bpm = 120,$dynamic = 'mf') {
         my $timbre = $track->timbre;
         for my $note ($track->notes) {
+            my @pitches = $tuning->note2pitch($note);
             my $tone = Audio::Aoede::Tone->new(
                 intensity => $dynamics{$dynamic} // 0.5,
                 duration => $note->duration,
                 timbre => $timbre,
-                pitches => [$note->pitches],
+                pitches => \@pitches,
                 );
             my ($tone_samples,$tone_carry) = $tone->sequence($rate,$bpm);
             my $n_samples =  $tone_samples->dim(0);
@@ -143,8 +152,9 @@ Work in progress!
 
 =item C<add_notes($notes_ref,$bpm)>
 
-Add an array of L<Audio::Aoede::Notes> objects, given as a reference,
-to the voice.  C<$bpm> the current speed in (beats per minute).
+Add a L<Audio::Aoede::Track> object with notes.  The method should be
+renamed to add_track.  C<$bpm> the current speed in (beats per
+minute).
 
 =item C<samples>
 

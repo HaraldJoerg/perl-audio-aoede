@@ -10,7 +10,7 @@ class Audio::Aoede::Timbre;
 use PDL;
 use constant PI => atan2(0,-1);
 
-field $effects :param = [];
+field $effects   :param = [];
 field @effects;
 field $harmonics :param = [1.0];
 field @harmonics :reader;

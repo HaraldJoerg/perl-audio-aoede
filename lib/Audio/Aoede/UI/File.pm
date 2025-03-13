@@ -10,17 +10,18 @@ class Audio::Aoede::UI::File;
 
 use File::Spec;
 use Prima qw( Dialog::FileDialog Sliders );
+use Audio::Aoede::File;
 
 field $file_info;
 field $parent   :param;
 field $path;
-field $duration = 0;
 field $position;
 field $pack     :param;
 field $label;
 field $stopwatch;
 field $slider;
 field $current_directory;
+field $current_file;
 
 ADJUST {
     $file_info = $parent->insert(
@@ -36,7 +37,7 @@ ADJUST {
     );
     $label = $top->insert(
         Label =>
-        text => $path // '(no file)',
+        text => '(no file)',
         ownerBackColor => 1,
         pack => { side => 'left', },
     );
@@ -49,24 +50,40 @@ ADJUST {
         Slider =>
         increment => 1,
         step => 1,
-        min => 0,
-        max => $duration,
         size => [600,50],
-        autoTrack => 1,
+        autoTrack => 0,
         ribbonStrip => 1,
         ticks => undef,
         ownerBackColor => 1,
         pack => { side => 'left', },
-        onChange => sub ($widget) { $self->slider_change($widget->value) },
+        onTrack => sub ($widget) { $self->slider_change($widget->value) },
+        onKeyDown => sub ($widget,$code,$key,@rest) {
+            if ($key  ==  kb::Left) {
+                my $new = $current_file->increment_position(-1);
+                $widget->value($new);
+                $stopwatch->text(format_time($new) . '/' .
+                                 format_time($current_file->duration));
+                main::run_current_spectrum();
+                $widget->clear_event;
+            }
+            elsif ($key  ==  kb::Right) {
+                my $new = $current_file->increment_position(1);
+                $widget->value($new);
+                $stopwatch->text(format_time($new) . '/' .
+                                 format_time($current_file->duration));
+                main::run_current_spectrum();
+                $widget->clear_event;
+            }
+
+        },
     );
     $stopwatch = $position_display->insert(
         Label =>
-        text => join('/',format_time(0),format_time($duration)),
+        text => join('/',format_time(0),format_time(0)),
         ownerBackColor => 1,
         pack => { side => 'left', padx => 20 },
     );
 }
-
 
 method open_file {
     my $open = Prima::Dialog::OpenDialog->new(
@@ -77,22 +94,19 @@ method open_file {
         directory => $current_directory || '.',
     );
     if ($open->execute) {
-        $path = $open->fileName;
-        my ($vol,$dirs,$file) = File::Spec->splitpath($path);
-        {
-            no warnings 'once';
-            $parent->text("$::title: $file");
-        }
-        $current_directory = $open->directory;
-        $label->text($file);
-        $slider->hide;
+        $slider->hide; # ...until the duration is available
         $file_info->visible(1);
-        return $path;
+        $current_directory = $open->directory;
+        return $open->fileName;
     }
     else {
         return;
     }
+}
 
+
+method set_label ($file) {
+    $label->text($file);
 }
 
 
@@ -116,30 +130,44 @@ method save_as {
 }
 
 
-method set_max_time ($new) {
+method set_duration ($new) {
     $slider->max($new);
     $slider->show;
-    $duration = $new;
     $stopwatch->text(format_time($slider->value) . '/' .
-                     format_time($duration));
+                     format_time($new));
 }
 
 
 method set_position ($new) {
     # This will trigger slider_change iff we hit a new second which in
-    # turn will update the stopwatch - so the stopwatch shows only seconds
+    # turn will update the stopwatch
     $slider->value($new);
+    $stopwatch->text(format_time($new) . '/' .
+                     format_time($current_file->duration));
+}
+
+
+method update_position () {
+    $slider->value($current_file->position);
+    $stopwatch->text(format_time($current_file->position) . '/' .
+                     format_time($current_file->duration));
+}
+
+
+method set_current_file ($new) {
+    $current_file = $new;
+    $stopwatch->text(format_time($current_file->position) . '/' .
+                     format_time($current_file->duration));
 }
 
 
 method slider_change ($value) {
-    {
-        # I would prefer to get rid of that function call but I have
-        # no good idea how
-        no warnings 'once';
-        main::update_position_by_ui($value);
+    if ($value  !=  $current_file->position) {
+        $current_file->set_position($value);
+        $stopwatch->text(format_time($value) . '/' .
+                         format_time($current_file->duration));
+        main::run_current_spectrum();
     }
-    $stopwatch->text(format_time($value) . '/' . format_time($duration));
 }
 
 
@@ -150,7 +178,8 @@ method recording {
 
 
 sub format_time ($time) {
-    return sprintf("%02d:%02.0f",int($time/60),$time % 60);
+    my $minutes = int($time/60);
+    return sprintf("%02d:%05.2f",$minutes,$time-60*$minutes);
 }
 
 
