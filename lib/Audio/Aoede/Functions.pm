@@ -5,6 +5,7 @@ no warnings 'experimental';
 
 use Exporter qw( import );
 BEGIN {
+    our @EXPORT_OK = qw( confine );
     our %EXPORT_TAGS = (
         waves => [ qw( f_sine_wave
                        f_square_wave
@@ -13,9 +14,22 @@ BEGIN {
     );
     Exporter::export_ok_tags('waves');
 }
-use PDL;
+use PDL::Lite;
 
 use Audio::Aoede::Units qw( PI );
+
+
+sub confine {
+    my ($value,$min,$max) = @_;
+    if ($value < $min) {
+        $_[0] = $min;
+    }
+    elsif ($value > max) {
+        $_[0] = $max;
+    }
+    return $_[0];
+}
+
 
 sub f_sine_wave ($rate) {
     return sub ($n_samples, $frequency, $since = 0) {

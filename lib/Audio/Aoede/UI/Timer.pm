@@ -10,6 +10,7 @@ class Audio::Aoede::UI::Timer;
 
 use builtin qw( refaddr );
 use Time::HiRes qw( gettimeofday tv_interval time);
+use Audio::Aoede::Functions qw( confine );
 
 field $fps :param :reader;
 field $timer;
@@ -56,12 +57,12 @@ method stop () {
 
 
 method set_fps ($fps) {
-    $fps  and  $timer->timeout(1000/$fps);
+    confine($fps,0.1,200);
+    $timer->timeout(1000/$fps);
 }
 
 
 method tick {
-#    return if $timer_stopping;
     my $now = time;
     for my $callback (values %callbacks) {
         $callback->($now-$previous_time);

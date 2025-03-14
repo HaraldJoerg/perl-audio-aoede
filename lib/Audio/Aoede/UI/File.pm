@@ -11,6 +11,7 @@ class Audio::Aoede::UI::File;
 use File::Spec;
 use Prima qw( Dialog::FileDialog Sliders );
 use Audio::Aoede::File;
+use Audio::Aoede::Functions qw( confine );
 
 field $file_info;
 field $parent   :param;
@@ -19,6 +20,7 @@ field $position;
 field $pack     :param;
 field $label;
 field $stopwatch;
+field $stepsize = 0;
 field $slider;
 field $current_directory;
 field $current_file;
@@ -59,7 +61,7 @@ ADJUST {
         onTrack => sub ($widget) { $self->slider_change($widget->value) },
         onKeyDown => sub ($widget,$code,$key,@rest) {
             if ($key  ==  kb::Left) {
-                my $new = $current_file->increment_position(-1);
+                my $new = $current_file->increment_position(-10**$stepsize);
                 $widget->value($new);
                 $stopwatch->text(format_time($new) . '/' .
                                  format_time($current_file->duration));
@@ -67,7 +69,7 @@ ADJUST {
                 $widget->clear_event;
             }
             elsif ($key  ==  kb::Right) {
-                my $new = $current_file->increment_position(1);
+                my $new = $current_file->increment_position(10**$stepsize);
                 $widget->value($new);
                 $stopwatch->text(format_time($new) . '/' .
                                  format_time($current_file->duration));
@@ -82,6 +84,33 @@ ADJUST {
         text => join('/',format_time(0),format_time(0)),
         ownerBackColor => 1,
         pack => { side => 'left', padx => 20 },
+    );
+    $position_display->insert(
+        Label =>
+        text => "Step width:",
+        pack => { side => 'left' },
+    );
+    my $step_label = $position_display->insert(
+        Label =>
+        text => 10**$stepsize,
+        pack => { side => 'left' },
+    );
+    $position_display->insert(
+        Label =>
+        text => "s",
+        pack => { side => 'left' },
+    );
+    $position_display->insert(
+        AltSpinButton =>
+        min  => -2, max => 0,
+        editClass => 'Prima::Label',
+        value => $stepsize,
+        pack => { side => 'left', padx => 20 },
+        onIncrement => sub ($widget,$delta) {
+            $stepsize += $delta;
+            confine($stepsize,-2,1);
+            $step_label->text(10**$stepsize);
+        }
     );
 }
 
