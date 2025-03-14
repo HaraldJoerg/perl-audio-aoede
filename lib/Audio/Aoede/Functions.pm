@@ -22,12 +22,12 @@ use Audio::Aoede::Units qw( PI );
 sub confine {
     my ($value,$min,$max) = @_;
     if ($value < $min) {
-        $_[0] = $min;
+        $value = $min;
     }
     elsif ($value > max) {
-        $_[0] = $max;
+        $value = $max;
     }
-    return $_[0];
+    return $value;
 }
 
 

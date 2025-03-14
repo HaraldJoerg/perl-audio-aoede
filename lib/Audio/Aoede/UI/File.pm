@@ -107,8 +107,7 @@ ADJUST {
         value => $stepsize,
         pack => { side => 'left', padx => 20 },
         onIncrement => sub ($widget,$delta) {
-            $stepsize += $delta;
-            confine($stepsize,-2,1);
+            $stepsize = confine($stepsize+$delta,-2,1);
             $step_label->text(10**$stepsize);
         }
     );
@@ -168,9 +167,7 @@ method set_duration ($new) {
 
 
 method set_position ($new) {
-    # This will trigger slider_change iff we hit a new second which in
-    # turn will update the stopwatch
-    $slider->value($new);
+    $slider->value(confine($new,0,$current_file->duration));
     $stopwatch->text(format_time($new) . '/' .
                      format_time($current_file->duration));
 }
