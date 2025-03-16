@@ -11,7 +11,7 @@ class Audio::Aoede::File;
 use PDL;
 use File::Spec;
 
-field $path     :param;
+field $path     :param  = undef;
 field $position :reader = 0;
 field $duration :reader = 0;
 field $rate;
@@ -42,8 +42,12 @@ method sound () {
 }
 
 
+method update_sound () {
+    $sound = cat(@channels)->transpose;
+}
+
 method n_samples {
-    return $channels[0]->dim(0);
+    return scalar @channels ? $channels[0]->dim(0) : 0;
 }
 
 
@@ -73,8 +77,8 @@ method channel ($number) {
 }
 
 
-method append_sound ($sound) {
-    my @new = $sound->transpose->dog;
+method append_sound ($batch) {
+    my @new = $batch->transpose->dog;
     @channels = map { $_->append(shift(@new)) } @channels;
 }
 1;

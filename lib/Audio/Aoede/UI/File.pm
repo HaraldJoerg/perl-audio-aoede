@@ -76,7 +76,6 @@ ADJUST {
                 main::run_current_spectrum();
                 $widget->clear_event;
             }
-
         },
     );
     $stopwatch = $position_display->insert(
@@ -197,7 +196,8 @@ method slider_change ($value) {
 }
 
 
-method recording {
+method recording ($current) {
+    $self->set_current_file($current);
     $label->text('Recording...');
     $file_info->visible(1);
 }

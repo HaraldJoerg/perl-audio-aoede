@@ -39,7 +39,7 @@ $::application->name($title);
 ######################################################################
 # Configuration, some hardwired right now
 my %options = (
-    fps           => 10,
+    fps           => 20,
     rate          => 48000,     # we have ~800 samples per second
     bits          => 16,        # fixed in the current implementation
     channels      => 2,         # fixed in the current implementation
@@ -121,6 +121,29 @@ my $main = Prima::MainWindow->create(
      ],
     ],
 );
+
+
+use Prima::EventHook;
+sub keyboard_hook ($object,$event,$code,$key,@rest) {
+    if (chr($code)  eq  ' ') {
+        if ($state eq 'playing') {
+            pause();
+            return 0;
+        }
+        if ($state eq 'paused') {
+            play();
+            return 0;
+        }
+    }
+    return 1;
+}
+Prima::EventHook::install(\&keyboard_hook,
+                          param => undef,
+                          event => 'KeyDown',
+                          object => undef,
+                          children => 0,
+                      );
+
 
 my $file_ui = Audio::Aoede::UI::File->new(
     parent => $main,
@@ -354,6 +377,7 @@ sub read_pipe ($delta) {
     return if $n_samples <= 0;
     my $sound = $recorders{microphone}->read_pipe($n_samples);
     $current->increment_position($delta);
+    $current->set_duration($current->position);
     $player->send_piddle($sound);
     $current->append_sound($sound);
     $file_ui->set_duration($current->position);
@@ -375,7 +399,7 @@ sub record () {
     }
     $current = Audio::Aoede::File->new();
     $current->set_sound(zeroes(2,0));
-    $file_ui->recording;
+    $file_ui->recording($current);
     $main->text("$title");
     $key_record->enabled(0);
     $key_stop->enabled(1);
@@ -416,9 +440,11 @@ sub stop {
         $player->close_pipe;
         $spectrum_ui->clear;
         # Now allow for replay
-        $current->set_position(0);
         my $sound_time = $current->n_samples / $options{rate};
-        $file_ui->set_max_time($sound_time);
+        $current->update_sound;
+        $current->set_position(0);
+        $current->set_duration($sound_time);
+        $file_ui->set_duration($sound_time);
         $file_ui->set_position(0);
     }
     $state = 'idle';
