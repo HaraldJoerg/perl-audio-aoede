@@ -1,8 +1,18 @@
 requires 'Carp';
 requires 'Exporter';
+requires 'File::Spec';
 requires 'File::Temp';
 requires 'FindBin';
 requires 'Feature::Compat::Class', '0.07';
+requires 'Getopt::Long';
+requires 'List::Util';
+requires 'Math::Trig';
+requires 'Midi::Simple';
+requires 'Midi::SoundFont';
 requires 'PDL', 2.099;
 requires 'PDL::DSP::Windows';
 requires 'PDL::Graphics::Prima';
+requires 'Scalar::Util';
+requires 'Test::More';
+requires 'Test::Fatal';
+requires 'Time::HiRes';
