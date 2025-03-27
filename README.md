@@ -1,11 +1,6 @@
 # perl-audio-aoede
 Sound from scratch, calculated with the Perl programming language
 
-**Caveat Emptor:** The current state of the project uses the "grid
-geometry manager" of Prima and therefore works only with
-[Prima](https://github.com/dk/Prima) installed from Git.  The grid
-geometry manager has not yet been released on CPAN.
-
 This is a side project from a side project, but it turned out to be a
 lot of fun so that I'll probably continue to spend some of my spare
 time on it.
