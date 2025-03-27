@@ -15,14 +15,17 @@ my $color = 'white';
 my $min_f = '20';
 my $max_f = '22050';
 my $duration = 1;
+my $out;
 
 GetOptions("color=s"    => \$color,
            "min=i"      => \$min_f,
            "max=i"      => \$max_f,
-           "duration=i" => \$duration)
+           "duration=i" => \$duration,
+           "out=s"      => \$out,
+       )
     or die ("Error in command line arguments\n");
 
-my $aoede = Audio::Aoede->new;
+my $aoede = Audio::Aoede->new(out => $out);
 my $rate      = $aoede->rate;
 my $noise = Audio::Aoede::Noise::colored(ucfirst $color,
                                          'Audio::Aoede::Noise',

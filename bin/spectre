@@ -424,13 +424,12 @@ sub stop {
     if ($state eq 'playing') {
         $timer->stop;
         $player->close_pipe;
-        $spectrum_ui->clear;
         $current->set_position(0);
         $file_ui->set_position(0);
     }
     elsif ($state eq 'paused') {
         $player->close_pipe;
-        $spectrum_ui->clear;
+
         $current->set_position(0);
         $file_ui->set_position(0);
     }
@@ -438,7 +437,6 @@ sub stop {
         $timer->stop;
         $recorders{microphone}->close_pipe;
         $player->close_pipe;
-        $spectrum_ui->clear;
         # Now allow for replay
         my $sound_time = $current->n_samples / $options{rate};
         $current->update_sound;
@@ -585,7 +583,7 @@ sub set_max_frequency ($new) {
     else {
         $new
             and  $new <= 0.5 * $options{max_frequency}
-            and  die "Don't do that: maximum frequency = '$new'";
+            and  warn "Don't do that: maximum frequency = '$new'";
     }
 }
 

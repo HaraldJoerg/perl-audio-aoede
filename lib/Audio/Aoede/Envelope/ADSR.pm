@@ -1,4 +1,4 @@
-# ABSTRACT: An envelope for Aoede voices
+# ABSTRACT: An ADSR envelope for Aoede voices
 package Audio::Aoede::Envelope::ADSR;
 use 5.032;
 use Feature::Compat::Class;

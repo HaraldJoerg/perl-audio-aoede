@@ -14,10 +14,13 @@ our @EXPORT_OK = qw(
                        HALFTONE
                        PI
                        cB
+                       cB_to_amplitude_factor
+                       cB_to_power_factor
                        dB
                        default_tempo
                        hz2mel
                        mel2hz
+                       MIDI_0
                        seconds_per_note
                        seconds_per_timecent
                        timecents_per_second
@@ -32,6 +35,16 @@ use constant HALFTONE => 2**(1/12);
 use constant CENT     => 2**(1/1200);
 use constant dB       => 10**(1/10);
 use constant cB       => 10**(1/100);
+use constant MIDI_0   => 8.176;
+
+
+sub cB_to_amplitude_factor ($cB) {
+    return 10 ** ($cB/200);
+}
+
+sub cB_to_power_factor ($cB) {
+    return 10 ** ($cB/100);
+}
 
 sub seconds_per_note ($bpm) {
     return 240/$bpm;

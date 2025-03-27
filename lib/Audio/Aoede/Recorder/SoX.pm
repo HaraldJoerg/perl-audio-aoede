@@ -60,8 +60,8 @@ class Audio::Aoede::Recorder::SoX
             die "Error reading sound: '$!'" unless defined $got;
             last unless $got;
             $offset += $got;
-            {
-                no warnings 'once';
+            # FIXME: We want a better way to allow progress tracking
+            if ($::application) {
                 $::application->yield();
             }
         }
@@ -98,26 +98,32 @@ class Audio::Aoede::Recorder::SoX
     }
 
 
-    method open_pipe {
+    method open_pipe ($path = undef) {
+        my @args = $path
+            ? ($path)
+            : (_build_argument_list(%extra_properties),
+               '--default');
         $pid = open ($handle,'-|',
-              $sox,
-              '--no-show-progress',
-              _build_argument_list(%extra_properties),
-              '--default',
-              _build_argument_list(%output_properties),
-              '-',
-              'trim', 0,
-          )
+                     $sox,
+                     @args,
+                     _build_argument_list(%output_properties),
+                     '-',
+                     'trim', 0,
+                 )
             or die "No pipe, no fun: '$!'";
         binmode $handle;
         return $handle;
     }
 
-
     method read_pipe ($n_samples) {
         my $n_bytes = $n_samples * $channels * $bits/8;
         my $data;
         my $got = sysread $handle,$data,$n_bytes,0;
+        if (! $got) {
+            # FIXME This could be end of file, or an error.
+            # We might to want to distinguish between those.
+            return undef;
+        }
         my $sound = short zeroes ($channels,$n_samples);
         $sound->update_data_from($data);
         return $sound;

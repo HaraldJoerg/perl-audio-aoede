@@ -1,0 +1,140 @@
+#!/usr/bin/env perl
+use 5.032;
+use feature "signatures";
+no warnings "experimental";
+
+use FindBin;
+use lib "$FindBin::Bin/../lib";
+
+use Audio::Aoede::Player::SoX;
+use Audio::Aoede::Voice;
+use Audio::Aoede::LPCM;
+use Audio::Aoede::SoundFont;
+
+my $rate = 48000;
+my $base_frequency = 440; # A4
+my $chromatic = 2**(1/12);
+my $cent = 2**(1/1200);
+my $out = $ARGV[1];
+
+use MIDI::Simple ();
+use PDL::Graphics::Prima::Simple;
+use PDL;
+
+my $player = Audio::Aoede::Player::SoX->new(
+    rate => $rate,
+    bits => 16,
+    channels => 1,
+    out => $out,
+);
+
+my $midi_path = $ARGV[0] || "$FindBin::Bin/../midi/westmister_chimes.mid";
+# FIXME: The next line should be a configuration item
+my $soundfont = '/usr/share/sounds/sf2/sf_GMbank.sf2';
+$soundfont = '/usr/share/sounds/sf2/FluidR3_GM.sf2';
+# $soundfont = '/usr/share/sounds/sf2/TimGM6mb.sf2';
+my $midi     = MIDI::Simple->read_score($midi_path);
+my $tempo    = $midi->Tempo;
+my $end_time = $midi->Time;
+my $tick;
+my @notes;
+
+my $sf = Audio::Aoede::SoundFont->from_file($soundfont);
+
+my @score = $midi->Score;
+@score = sort { $a->[1] <=> $b->[1] } @score;
+push @score,['_end' => $end_time];
+
+my $current_time = 0;
+my $current_inst;
+
+# ----------------------------------------------------------------------
+# callback subroutines
+sub set_tempo ($speed) {
+    $tick = $speed / 1000_000 / $tempo;
+}
+
+sub text_event ($text) {
+    say $text;
+}
+
+sub patch_change ($channel,$patch) {
+    my $patch_name = $sf->patch_name(0,$patch);
+    $current_inst = $sf->instrument($patch_name);
+}
+
+sub note ($duration,$channel,$note,$velocity) {
+    my $voice = soundfont_wave(undef,
+        $sf,$current_inst,$note,$rate,$velocity);
+
+    # For a boring sine wave, uncomment this
+    # my $frequency = $base_frequency * $chromatic**($note-69);
+    # my $time      = $duration * $tick;
+    # my $volume    = $velocity / 127;
+    # my $xvoice = Audio::Aoede::Voice->sine_wave(
+    #     $frequency,
+    #     $rate,
+    #     $velocity
+    # );
+
+    push @notes,[$voice,$duration,$channel];
+}
+
+sub _end {
+    say "Done!";
+}
+
+# This is supposed to go into another module....
+sub soundfont_wave ($class, $soundfont, $instrument,
+                    $note, $rate, $velocity = 127)
+{
+    require Audio::Aoede::Voice::SoundFont;
+    return Audio::Aoede::Voice::SoundFont->new(
+        instrument => $instrument,
+        soundfont  => $soundfont,
+        note       => $note,
+        rate       => $rate,
+        volume     => $velocity/127,
+    );
+}
+# ----------------------------------------------------------------------
+
+my %type_dispatch = (
+    text_event   => \&text_event,
+    patch_change => \&patch_change,
+    note         => \&note,
+    set_tempo    => \&set_tempo,
+    _end         => \&_end,
+);
+
+$player->open_pipe;
+for my $entry (@score) {
+    my ($type,$start_time,@params) = @$entry;
+    if ($start_time > $current_time) {
+        my $todo = ($start_time - $current_time) * $tick;
+        my $n_samples = $rate * $todo;
+        my $sound = zeroes($rate * $todo);
+        for my $note (@notes) {
+            my ($voice,$duration,$channel) = @$note;
+            if ($duration * $tick >= $todo) {
+                $sound += $voice->next_samples($n_samples,
+					       $current_time*$tick*$rate);
+                $duration -= ($start_time - $current_time);
+                $note->[1] = $duration;
+            }
+            else {
+                die "Not yet implemented: Note dies down before a new event";
+            }
+        }
+        @notes = grep { $_->[1] > 0 } @notes; # kill expired notes
+        $current_time = $start_time;
+        $player->send_piddle(short $sound);
+    }
+    if ((my $handler = $type_dispatch{$type})) {
+        &$handler(@params);
+    }
+    else {
+        warn "Type '$type' not handled\n";
+    }
+}
+$player->close_pipe;
