@@ -8,6 +8,7 @@ no warnings 'experimental';
 class Audio::Aoede::SoundFont {
     field %instruments;
     field @presets;
+    field %presets;
     field %samples;
 
     use MIDI::SoundFont;
@@ -31,6 +32,7 @@ class Audio::Aoede::SoundFont {
         } keys $sf_ref->{inst}->%*;
         for my $preset ($sf_ref->{phdr}->@*) {
             $presets[$preset->{wBank}][$preset->{wPreset}] = $preset;
+            $presets{$preset->{wBank}}{$preset->{achPresetName}} = $preset;
         }
         %samples = map {
             $_ => AAS::Sample->new(

@@ -113,54 +113,50 @@ Audio::Aoede::Voice - One voice in the Aoede Orchestra
 =head1 SYNOPSIS
 
   use Audio::Aoede::Voice;
-  $voice = Audio::Aoede::Voice->new(function => sub {...})
+  $voice = Audio::Aoede::Voice->new(rate => 44100);
 
 =head1 DESCRIPTION
 
-This module is about to be changed heavily while the Aoede synthesizer
-is being worked on.
+This module collects L<Audio::Aoede::Track> objects of
+L<Audio::Aoede::Note>s and applies a tuning to convert them to a
+one-dimensional PDL array of samples.  The number of samples
+corresponds to the length of the track and the sample rate.
+
+Effects (like reverb) which cause notes to be audible after the
+nominal duration of the track are collected in another one-dimensional
+PDL array, the length of which may vary depending on the effects.
 
 =head1 METHODS
 
-=over
+=head2 $voice = Audio::Aoede::Voice->new(%params)
 
-=item C<< $voice = Audio::Aoede::Voice->new(function => \&func) >>
-
-Create a new voice object.  Currently there is only one construction
-paraneter:
+Creates an Audio::Aoede::Voice object from a hash of parameters.  The
+keys of the hash are:
 
 =over
 
-=item C<function>
+=item C<rate>
 
-This is a reference to a subroutine which returns the next batch of
-samples.  It takes three parameters: The number of samples, the
-frequency, and the initial sample number (optional, defaults to 0).
+The number of samples per second to be created.
 
-Probably the frequency will at some point be optional, too, since
-there are noises which can not be described by one frequency.
+=item C<tuning>
 
-The initial sample number is not used yet.  It is intended to support
-voices with low-frequency oscillators.  The voice might be able to
-provide "next" samples and keep track of that value by itself, but
-this fails if there's more than one consumer for the voice (for
-example, a sound backend and an oscilloscope).
-
-Work in progress!
+The rule to convert a L<Audio::Aoede::Note> object into a
+pitch value, given as an object which provides a method
+C<note2pitch>.
 
 =back
 
-=item C<add_notes($notes_ref,$bpm)>
+=head2 $samples = $voice->samples()
 
-Add a L<Audio::Aoede::Track> object with notes.  The method should be
-renamed to add_track.  C<$bpm> the current speed in (beats per
-minute).
+Return the samples accumulated so far, as a 1D L<PDL> object,
+scaled to the interval [-1,1]
 
-=item C<samples>
+=head2 $carry = $voice->carry()
 
-Return the samples accumulated so far, as a 1D L<PDL> object.
-
-=back
+Return the samples corresponding to sound after the nominal duration
+of the track as a L<PDL> object, scaled with the same scale as the
+samples.
 
 =head1 AUTHOR
 

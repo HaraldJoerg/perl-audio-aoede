@@ -60,6 +60,7 @@ sub text_event ($text) {
 
 sub patch_change ($channel,$patch) {
     my $patch_name = $sf->patch_name(0,$patch);
+    say "patch change to $patch = '$patch_name'";
     $current_inst = $sf->instrument($patch_name);
 }
 
@@ -80,6 +81,17 @@ sub note ($duration,$channel,$note,$velocity) {
     push @notes,[$voice,$duration,$channel];
 }
 
+sub time_signature ($numerator,$denominator,$metronome_clicks,$bb) {
+    my $signature = {
+        numerator => $numerator,
+        denominator => 2**$denominator,
+        metronome_clicks => $metronome_clicks,
+        bb => $bb,
+    };
+    use Data::Dump qw( dump );
+    warn dump $signature;
+}
+
 sub _end {
     say "Done!";
 }
@@ -88,9 +100,10 @@ sub _end {
 sub soundfont_wave ($class, $soundfont, $instrument,
                     $note, $rate, $velocity = 127)
 {
+    say "Current instrument: $instrument";
     require Audio::Aoede::Voice::SoundFont;
     return Audio::Aoede::Voice::SoundFont->new(
-        instrument => $instrument,
+        instrument => $instrument // $sf->instrument('Celesta'),
         soundfont  => $soundfont,
         note       => $note,
         rate       => $rate,
@@ -100,16 +113,18 @@ sub soundfont_wave ($class, $soundfont, $instrument,
 # ----------------------------------------------------------------------
 
 my %type_dispatch = (
-    text_event   => \&text_event,
-    patch_change => \&patch_change,
-    note         => \&note,
-    set_tempo    => \&set_tempo,
-    _end         => \&_end,
+    text_event     => \&text_event,
+    patch_change   => \&patch_change,
+    note           => \&note,
+    set_tempo      => \&set_tempo,
+    time_signature => \&time_signature,
+    _end           => \&_end,
 );
 
 $player->open_pipe;
 for my $entry (@score) {
     my ($type,$start_time,@params) = @$entry;
+    say "Entry: type = $type, start = $start_time";
     if ($start_time > $current_time) {
         my $todo = ($start_time - $current_time) * $tick;
         my $n_samples = $rate * $todo;

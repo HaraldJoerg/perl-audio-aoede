@@ -2,7 +2,6 @@
 package Audio::Aoede::Chord;  # for tools which don't grok class
 
 use 5.038;
-use utf8; # for the unicode MUSICAL SYMBOL stuff
 use warnings;
 use feature 'signatures';
 no warnings 'experimental';

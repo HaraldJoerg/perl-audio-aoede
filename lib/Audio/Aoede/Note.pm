@@ -1,4 +1,4 @@
-# Abstract: A single (music) note
+# Abstract: A single (music) note with a name
 package Audio::Aoede::Note;  # for tools which don't grok class
 
 use 5.036;
