@@ -7,9 +7,9 @@ use FindBin;
 use lib "$FindBin::Bin/../lib";
 
 use Audio::Aoede::Player::SoX;
-use Audio::Aoede::Voice;
-use Audio::Aoede::LPCM;
 use Audio::Aoede::SoundFont;
+
+our @generators;
 
 my $rate = 48000;
 my $base_frequency = 440; # A4
@@ -18,13 +18,12 @@ my $cent = 2**(1/1200);
 my $out = $ARGV[1];
 
 use MIDI::Simple ();
-use PDL::Graphics::Prima::Simple;
 use PDL;
 
 my $player = Audio::Aoede::Player::SoX->new(
     rate => $rate,
     bits => 16,
-    channels => 1,
+    channels => 2,
     out => $out,
 );
 
@@ -32,7 +31,7 @@ my $midi_path = $ARGV[0] || "$FindBin::Bin/../midi/westmister_chimes.mid";
 # FIXME: The next line should be a configuration item
 my $soundfont = '/usr/share/sounds/sf2/sf_GMbank.sf2';
 $soundfont = '/usr/share/sounds/sf2/FluidR3_GM.sf2';
-# $soundfont = '/usr/share/sounds/sf2/TimGM6mb.sf2';
+#$soundfont = '/usr/share/sounds/sf2/TimGM6mb.sf2';
 my $midi     = MIDI::Simple->read_score($midi_path);
 my $tempo    = $midi->Tempo;
 my $end_time = $midi->Time;
@@ -46,7 +45,7 @@ my @score = $midi->Score;
 push @score,['_end' => $end_time];
 
 my $current_time = 0;
-my $current_inst;
+my @current_patches;
 
 # ----------------------------------------------------------------------
 # callback subroutines
@@ -58,58 +57,31 @@ sub text_event ($text) {
     say $text;
 }
 
-sub patch_change ($channel,$patch) {
-    my $patch_name = $sf->patch_name(0,$patch);
-    say "patch change to $patch = '$patch_name'";
-    $current_inst = $sf->instrument($patch_name);
+sub patch_change ($channel,$patch_number) {
+    my $bank = 0;
+    my $patch = $sf->patch($bank,$patch_number);
+    my $patch_name = $patch->name;
+    $current_patches[$channel] = $patch_number;
 }
 
 sub note ($duration,$channel,$note,$velocity) {
-    my $voice = soundfont_wave(undef,
-        $sf,$current_inst,$note,$rate,$velocity);
-
-    # For a boring sine wave, uncomment this
-    # my $frequency = $base_frequency * $chromatic**($note-69);
-    # my $time      = $duration * $tick;
-    # my $volume    = $velocity / 127;
-    # my $xvoice = Audio::Aoede::Voice->sine_wave(
-    #     $frequency,
-    #     $rate,
-    #     $velocity
-    # );
-
-    push @notes,[$voice,$duration,$channel];
+    my @sources = $sf->sources($channel,$current_patches[$channel],$note,$velocity,$rate);
+    push @notes,map { [$_,$duration,$channel] } @sources;
 }
 
 sub time_signature ($numerator,$denominator,$metronome_clicks,$bb) {
     my $signature = {
-        numerator => $numerator,
-        denominator => 2**$denominator,
+        numerator        => $numerator,
+        denominator      => 2**$denominator,
         metronome_clicks => $metronome_clicks,
-        bb => $bb,
+        bb               => $bb,
     };
-    use Data::Dump qw( dump );
-    warn dump $signature;
 }
 
 sub _end {
     say "Done!";
 }
 
-# This is supposed to go into another module....
-sub soundfont_wave ($class, $soundfont, $instrument,
-                    $note, $rate, $velocity = 127)
-{
-    say "Current instrument: $instrument";
-    require Audio::Aoede::Voice::SoundFont;
-    return Audio::Aoede::Voice::SoundFont->new(
-        instrument => $instrument // $sf->instrument('Celesta'),
-        soundfont  => $soundfont,
-        note       => $note,
-        rate       => $rate,
-        volume     => $velocity/127,
-    );
-}
 # ----------------------------------------------------------------------
 
 my %type_dispatch = (
@@ -121,29 +93,57 @@ my %type_dispatch = (
     _end           => \&_end,
 );
 
+my $attenuation = 1.0;
+my $volume      = 1.0;
+patch_change(128,0); # make sure we have a default patch
 $player->open_pipe;
 for my $entry (@score) {
     my ($type,$start_time,@params) = @$entry;
-    say "Entry: type = $type, start = $start_time";
     if ($start_time > $current_time) {
         my $todo = ($start_time - $current_time) * $tick;
-        my $n_samples = $rate * $todo;
-        my $sound = zeroes($rate * $todo);
+        my $n_samples = int($rate * $todo + 0.5);
+        my @channels = (zeroes($n_samples),zeroes($n_samples));
+      NOTE:
         for my $note (@notes) {
-            my ($voice,$duration,$channel) = @$note;
-            if ($duration * $tick >= $todo) {
-                $sound += $voice->next_samples($n_samples,
-					       $current_time*$tick*$rate);
-                $duration -= ($start_time - $current_time);
-                $note->[1] = $duration;
+            my $since   = int($current_time*$tick*$rate + 0.5);
+            my ($source,$duration,$channel) = @$note;
+            my $left  = 1/1000 * (500 - $source->pan);
+            my $right = 1/1000 * (500 + $source->pan);
+            if ($duration * $tick > $todo) {
+                my $samples = $source->next_samples($n_samples,$since);
+                $channels[0] += $left  * $samples;
+                $channels[1] += $right * $samples;
+                $note->[1] = $duration - $start_time + $current_time;
+            }
+            elsif ($duration * $tick == $todo) {
+                my $samples = $source->next_samples($n_samples,$since);
+                $channels[0] += $left  * $samples;
+                $channels[1] += $right * $samples;
+                $note->[1] = 0;
+                $source->released($since + $n_samples);
             }
             else {
-                die "Not yet implemented: Note dies down before a new event";
+                my $note_ends = int($duration * $rate * $tick + 0.5);
+                if ($note_ends > 0) {
+                    my $samples = $source->next_samples($note_ends,$since);
+                    $channels[0]->slice([0,$note_ends-1]) += $left  * $samples;
+                    $channels[1]->slice([0,$note_ends-1]) += $right * $samples;
+                    $note->[1] = 0;
+                    $source->released($since + $note_ends);
+                }
+                my $rest = $source->next_samples($n_samples-$note_ends,$since+$note_ends);
+                $channels[0]->slice([$note_ends,$n_samples-1]) += $left  * $rest;
+                $channels[1]->slice([$note_ends,$n_samples-1]) += $right * $rest;
             }
         }
-        @notes = grep { $_->[1] > 0 } @notes; # kill expired notes
+        @notes = grep { ! $_->[0]->exhausted } @notes;
         $current_time = $start_time;
-        $player->send_piddle(short $sound);
+        my $sound = cat(@channels)->transpose;
+        my $max = $sound->abs->max;
+        if ($max * $attenuation > $volume * 2**15) {
+            $attenuation = $volume * 2**15 / $max;
+        }
+        $player->send_piddle(short ($sound * $attenuation));
     }
     if ((my $handler = $type_dispatch{$type})) {
         &$handler(@params);

@@ -18,9 +18,9 @@ field $attack  :param = 0;
 field $hold    :param = 0;
 field $decay   :param :reader = 0;
 field $sustain :param :reader = 1;
-field $release :param = 0;
+field $release :param :reader = 0;
 field $env_samples :reader;
-field $rel_samples;
+field $rel_samples :reader = empty;
 
 
 sub new_from_sf ($class, %sf_params) {
@@ -59,14 +59,30 @@ ADJUST {
         my $n_samples = int($hold * $rate + 0.5);
         $env_samples = $env_samples->append(ones($n_samples));
     }
-    # Decay is done by SoundFont subclasses: The volume envelope uses
-    # different units and rules than the modulation envelope.
+    # Decay and release are done by SoundFont subclasses: The volume
+    # envelope uses different units and rules than the modulation
+    # envelope.
 }
 
 
 method append_env_samples ($samples) {
     $env_samples = $env_samples->append($samples);
 }
+
+
+# Called by subclasses' ADJUST according to their release rules
+method set_rel_samples ($samples) {
+    $rel_samples = $samples;
+}
+
+
+method trailer_samples ($index) {
+    my $value = $index < $env_samples->dim(0)
+        ? $env_samples->at($index)
+        : $sustain;
+    return $rel_samples * $value;
+}
+
 
 1;
 

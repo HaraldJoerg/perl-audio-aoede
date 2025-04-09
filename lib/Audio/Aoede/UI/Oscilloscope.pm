@@ -120,8 +120,8 @@ oscilloscope will start at 0.
 =item C<source>
 
 The data source which can be called to obtain new data.  Usually an
-L<Audio::Aoede::Server> object.  Needs to provide methods
-C<current_sample> and C<fetch_data>.
+L<Audio::Aoede::Server> object.  Needs to provide method
+C<fetch_data>.
 
 =item C<rate>
 

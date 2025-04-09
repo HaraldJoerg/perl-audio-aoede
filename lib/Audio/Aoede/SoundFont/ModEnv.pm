@@ -16,16 +16,21 @@ use Audio::Aoede::Units qw( CENT MIDI_0 );
 
 field $initialFilterFc  :param = 13500;
 field $modEnvToFilterFc :param = 0;
-field $initial_cutoff = MIDI_0 * CENT ** $initialFilterFc;;
+field $initial_cutoff = MIDI_0 * CENT ** $initialFilterFc;
 field $actual_cutoff;
 
 
 ADJUST {
-    if ($self->decay) {
-        my $n_samples = int($self->decay * $self->rate + 0.5);
+    if (my $decay = $self->decay) {
+        my $n_samples = int($decay * $self->rate + 0.5);
         my $range = 1 - $self->sustain;
         my $attenuation = sequence($n_samples+1) / $n_samples;
         $self->append_env_samples(1 - $range * $attenuation);
+    }
+    if (my $release = $self->release) {
+        my $n_samples = int($release * $self->rate + 0.5);
+        my $attenuation = 1 - sequence($n_samples+1) / $n_samples;
+        $self->set_rel_samples($attenuation);
     }
 }
 
@@ -34,7 +39,8 @@ method adjust_filter_cutoff ($interval) {
     $actual_cutoff = $initial_cutoff * $interval;
 }
 
-method apply($samples,$offset) {
+
+method apply ($samples,$offset) {
     if ($self->env_samples->isempty) {
         return $samples;
     }
@@ -47,10 +53,15 @@ method apply($samples,$offset) {
     for my ($index,$sample) (builtin::indexed $samples->list) {
         my $filtered = $filter->process_sample($sample);
         push @filtered,$filtered;
-        my $effective_cutoff = $actual_cutoff * CENT ** ($modEnvToFilterFc * $self->env_samples->at($index));
+        my $element = $index < $self->env_samples->dim(0)
+            ? $index
+            : $self->env_samples->dim(0)-1;
+        my $env_at_element = $self->env_samples->at($element);
+        my $effective_cutoff = $actual_cutoff *
+            CENT ** ($modEnvToFilterFc * $env_at_element);
         $filter->set_cutoff($effective_cutoff);
     }
-#    @filtered = map { $filter->process_sample($_) } $samples->list;
     return pdl(@filtered);
 }
 
+1;

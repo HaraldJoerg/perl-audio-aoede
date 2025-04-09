@@ -31,6 +31,7 @@ class Audio::Aoede::Envelope::ADSR {
 
         if ($decay) {
             $decay = int ($decay * $rate);
+            # FIXME: Decay should be exponential
             $decay_samples = zeroes($decay)->xlinvals(($decay-1)/
                                                       $decay,$sustain);
         } else {
@@ -41,6 +42,7 @@ class Audio::Aoede::Envelope::ADSR {
         # at the time of releasing
         if ($release) {
             $release = int ($release * $rate);
+            # FIXME: Release should be exponential
             $release_samples = zeroes($release)->xlinvals(($release-1)/
                                                           $release,0);
         }
@@ -131,7 +133,7 @@ class Audio::Aoede::Envelope::ADSR {
 
 
     method release ($first) {
-        return pdl([]) unless $release;
+        return empty unless $release;
         my $amplitude;
         if ($attack  and  $first < $attack) {
             $amplitude = $first / $attack;
@@ -174,7 +176,7 @@ Audio::Aoede::Envelope::ADSR - a "classic" volume envelope
       sustain => $sustain_level,
       release => $release_time,
   );
-  my ($modified,$carry) = $envelope->apply($samples);
+  my $modified = $envelope->apply($samples);
 
 =head1 DESCRIPTION
 
@@ -225,20 +227,12 @@ explained in the L<description|/#DESCRIPTION>.  C<attack>, C<decay>
 and C<release>, are given in seconds, C<sustain> does not carry
 a unit.
 
-=item C<< ($mod_samples,$carry) = $env->apply($samples) >>
+=item C<< $mod_samples = $env->apply($samples) >>
 
-Apply the envelope to C<$samples>.  Returns an array of two 1D PDL
-arrays: The first array has the same dimension as the input array, and
-the second has a dimension depending on the release time and the
-sample rate.
+Apply the envelope to C<$samples>.  Returns an 1D PDL
+array with the same dimension as the input array.
 
 =back
-
-=head1 RESTRICTIONS
-
-This module needs the sample rate available from an L<Audio::Aoede>
-instance.  I am not yet decided how I want the sample rate to be
-passed between the Audio::Aoede modules.
 
 =head1 AUTHOR
 

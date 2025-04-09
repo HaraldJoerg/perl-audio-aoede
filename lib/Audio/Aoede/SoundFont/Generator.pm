@@ -55,20 +55,15 @@ class Audio::Aoede::SoundFont::Generator {
     field $modLfoToPitch              :param = 0;       #  5
     field $modLfoToVolume             :param = 0;       # 13
     field $overridingRootKey          :param = -1;      # 58
-    field $pan                        :param = 0;       # 17
+    field $pan                        :param :reader = 0;  # 17
     field $releaseModEnv              :param = -12000;  # 30
     field $releaseVolEnv              :param = -12000;  # 38
     field $reverbEffectsSend          :param = 0;       # 16
-    field $sampleID                   :param = undef;   # 53
+    field $sampleID                   :param;           # 53
     field $sampleModes                :param = 0;       # 54
     field $scaleTuning                :param = 100;     # 56
-    # According to the spec, the defaults of sustainXxxEnv is 0 (zero
-    # attenuation or full level), but this does not work for the
-    # FluidSynth soundfont patch "Celesta".  Eventually I need to
-    # check whether instruments with a nonzero sustain value like a
-    # church organ rely on a default of 0.
-    field $sustainModEnv              :param = 1000;    # 29
-    field $sustainVolEnv              :param = 1000;    # 37
+    field $sustainModEnv              :param = 0;       # 29
+    field $sustainVolEnv              :param = 0;       # 37
     field $startAddrsOffset           :param = 0;       #  0
     field $startAddrsCoarseOffset     :param = 0;       #  4
     field $startloopAddrsCoarseOffset :param = 0;       # 45
@@ -77,10 +72,9 @@ class Audio::Aoede::SoundFont::Generator {
     field $velocity                   :param = -1;      # 47
     field $velRange                   :param = [0,127]; # 44
 
-    field $sample;  # :writer below - that's AA::Soundfont::Sample
+    field $sfSample                   :param;
     field $samples; # the data after applying our filter
-    field $vol_env;
-    field $mod_env;
+
     use PDL;
     use PDL::Func;
 
@@ -91,27 +85,12 @@ class Audio::Aoede::SoundFont::Generator {
         if ($velocity == -1) {
             undef $velocity;
         }
+        $samples = double $sfSample->data;
     }
 
 
-    method set_sample ($new_sample) {
-        return if defined $samples; # we've done that already
-        return unless defined $new_sample;
-        $sample = $new_sample;
-        $samples = double $sample->data;
-        my $rate = $sample->rate;
-        $mod_env = Audio::Aoede::SoundFont::ModEnv->new_from_sf(
-            rate             => $rate,
-            delayModEnv      => $delayModEnv,
-            attackModEnv     => $attackModEnv,
-            holdModEnv       => $holdModEnv,
-            decayModEnv      => $decayModEnv,
-            sustainModEnv    => $sustainModEnv,
-            releaseModEnv    => $releaseModEnv,
-            initialFilterFc  => $initialFilterFc,
-            modEnvToFilterFc => $modEnvToFilterFc,
-        );
-        $vol_env = Audio::Aoede::SoundFont::VolEnv->new_from_sf(
+    method vol_env ($note,$rate) {
+        return Audio::Aoede::SoundFont::VolEnv->new_from_sf(
             rate             => $rate,
             delayVolEnv      => $delayVolEnv,
             attackVolEnv     => $attackVolEnv,
@@ -122,48 +101,61 @@ class Audio::Aoede::SoundFont::Generator {
         );
     }
 
-
-    method vol_env () {
-        return $vol_env->env_samples;
-    }
-
-    method mod_env () {
+    method mod_env ($note,$rate) {
+        my $mod_env = Audio::Aoede::SoundFont::ModEnv->new_from_sf(
+            rate             => $rate,
+            delayModEnv      => $delayModEnv,
+            attackModEnv     => $attackModEnv,
+            holdModEnv       => $holdModEnv,
+            decayModEnv      => $decayModEnv,
+            sustainModEnv    => $sustainModEnv,
+            releaseModEnv    => $releaseModEnv,
+            initialFilterFc  => $initialFilterFc,
+            modEnvToFilterFc => $modEnvToFilterFc,
+        );
+        my $key = $overridingRootKey || $sfSample->by_original_key;
+        my $interval = HALFTONE ** ($note - $key) * CENT ** $fineTune;
+        $mod_env->adjust_filter_cutoff($interval);
         return $mod_env;
     }
 
     method resample ($note,$rate) {
-        return unless $sample;
-        my $key = $overridingRootKey || $sample->by_original_key;
-        my $interval = HALFTONE ** ($note - $key) * CENT ** $fineTune;
-        $mod_env->adjust_filter_cutoff($interval);
-        my $start = $sample->start
+        die "We have no samples" unless $sfSample;
+        my $start = $sfSample->start
             + $startAddrsCoarseOffset * 2**15
             + $startAddrsOffset;
-        my $end = $sample->end
+        my $end = $sfSample->end
             + $endAddrsCoarseOffset * 2**15
             + $endAddrsOffset;
-        my $start_loop = $sample->start_loop
-            + $startloopAddrsCoarseOffset * 2**15
-            + $startloopAddrsOffset;
-        my $end_loop = $sample->end_loop
-            + $endloopAddrsCoarseOffset * 2**15
-            + $endloopAddrsOffset;
 
         my $n_samples = $end - $start;
         my $obj = PDL::Func->init( Interpolate => "Linear" );
         $obj->set(x => sequence ($n_samples),
                   y => $samples->slice([$start,$end-1]));
-        my $factor = $rate/$sample->rate / $interval;
+        my $key = $overridingRootKey || $sfSample->by_original_key;
+        my $interval = HALFTONE ** ($note - $key) * CENT ** $fineTune;
+        my $factor = $rate/$sfSample->rate / $interval;
         my $xi = sequence($n_samples * $factor) / $factor;
         my $resampled = $obj->interpolate($xi);
         $resampled *= cB_to_amplitude_factor(-$initialAttenuation);
-        return ($resampled->slice([$start*$factor,$start_loop*$factor-1]),
-                $resampled->slice([$start_loop*$factor,$end_loop*$factor-1]));
+        if ($self->_sound_loops) {
+            my $start_loop = $sfSample->start_loop
+                + $startloopAddrsCoarseOffset * 2**15
+                + $startloopAddrsOffset;
+            my $end_loop = $sfSample->end_loop
+                + $endloopAddrsCoarseOffset * 2**15
+                + $endloopAddrsOffset;
+            return ($resampled->slice([$start*$factor,$start_loop*$factor-1]),
+                    $resampled->slice([$start_loop*$factor,$end_loop*$factor-1]));
+        }
+        else {
+            return ($resampled->slice([$start*$factor,$end*$factor-1]),
+                    empty);
+        }
     }
 
-    # AA::Voice::SoundFont calls this
-    method sample_id {
-        return $sampleID;
+    method _sound_loops () {
+        return ($sampleModes & 1);
     }
 }
 

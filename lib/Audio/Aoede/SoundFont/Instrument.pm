@@ -6,39 +6,38 @@ use feature 'signatures';
 no warnings 'experimental';
 
 class Audio::Aoede::SoundFont::Instrument {
+    field $ibags :param;
     field @ibags;
-    field %generators;
 
-    use aliased 'Audio::Aoede::SoundFont::Generator'  => 'AAS::Generator';
 
     sub from_hashref($class,$href) {
-        my $instrument = $class->new;
-        $instrument->init($href->{ibags});
+        my $instrument = $class->new(%$href);
     }
 
-    method init ($ibag_ref) {
-        @ibags = $ibag_ref->@*;
-        return $self;
+
+    ADJUST {
+        @ibags = @$ibags;
+        undef $ibags;
     }
 
-    method generator ($note) {
-        if ($generators{$note}) {
-            return $generators{$note};
-        }
-        my ($sample_id,$generator);
+
+    method applicable_ibags ($note,$velocity) {
+        my @applicable_ibags;
+        my $generator;
       IBAG:
         for my $ibag (@ibags) {
             $generator = $ibag->{generators};
-            my $range = $generator->{keyRange} // [0,127];
-            my ($min,$max) = @$range;
-            if ($note >= $min  and  $note <= $max) {
-                $sample_id = $generator->{sampleID};
-                defined $sample_id  and  last IBAG;
+            if (my $vel_range = $generator->{velRange}) {
+                next IBAG if ($velocity < $vel_range->[0]);
+                next IBAG if ($velocity > $vel_range->[1]);
             }
+            if (my $key_range = $generator->{keyRange}) {
+                next IBAG if ($note < $key_range->[0]);
+                next IBAG if ($note > $key_range->[1]);
+            }
+            push @applicable_ibags,$ibag;
         }
-        $sample_id  or  die "Sorry, no sample";
-        $generators{$note} = AAS::Generator->new(%$generator);
-        return $generators{$note};
+        return @applicable_ibags;
     }
 }
 

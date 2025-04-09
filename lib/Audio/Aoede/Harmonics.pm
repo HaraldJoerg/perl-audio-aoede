@@ -10,7 +10,6 @@ class Audio::Aoede::Harmonics {
     use PDL;
     use Audio::Aoede::Functions qw ( f_sine_wave );
     use Audio::Aoede::Link;
-    use Audio::Aoede::Source;
 
     field $frequency :param;
     field $volume    :reader = 1; # that's for the sum of it

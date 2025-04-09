@@ -6,39 +6,47 @@ use feature 'signatures';
 no warnings 'experimental';
 
 class Audio::Aoede::SoundFont::Preset {
-    field @ibags;
-    field %generators;
+    # The first three fields are mainly for diagnostics
+    field $achPresetName :param;
+    field $wBank         :param;
+    field $wPreset       :param;
+    # The pbags (not yet objects) is where the fun starts
+    field $pbags         :param;
+    field @pbags;
 
-    use aliased 'Audio::Aoede::SoundFont::Generator'  => 'AAS::Generator';
 
     sub from_hashref($class,$href) {
-        my $preset = $class->new;
-        $preset->init($href->{ibags});
+        return $class->new(%$href);
     }
 
-    method init ($ibag_ref) {
-        @ibags = $ibag_ref->@*;
-        return $self;
+
+    ADJUST {
+        @pbags = @$pbags;
+        undef $pbags;
     }
 
-    method generator ($note) {
-        if ($generators{$note}) {
-            return $generators{$note};
-        }
-        my ($sample_id,$generator);
-      IBAG:
-        for my $ibag (@ibags) {
-            $generator = $ibag->{generators};
-            my $range = $generator->{keyRange} // [0,127];
-            my ($min,$max) = @$range;
-            if ($note >= $min  and  $note <= $max) {
-                $sample_id = $generator->{sampleID};
-                defined $sample_id  and  last IBAG;
+
+    method name {
+        return $achPresetName;
+    }
+
+    method applicable_pbags ($note,$velocity) {
+        my @applicable_pbags;
+        my $generator;
+      PBAG:
+        for my $pbag (@pbags) {
+            $generator = $pbag->{generators};
+            if (my $vel_range = $generator->{velRange}) {
+                next PBAG if ($velocity < $vel_range->[0]);
+                next PBAG if ($velocity > $vel_range->[1]);
             }
+            if (my $key_range = $generator->{keyRange}) {
+                next PBAG if ($note < $key_range->[0]);
+                next PBAG if ($note > $key_range->[1]);
+            }
+            push @applicable_pbags,$pbag;
         }
-        $sample_id  or  die "Sorry, no sample";
-        $generators{$note} = AAS::Generator->new(%$generator);
-        return $generators{$note};
+        return @applicable_pbags;
     }
 }
 
