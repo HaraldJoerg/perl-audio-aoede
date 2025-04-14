@@ -81,7 +81,13 @@ class Audio::Aoede::Player::SoX
         my $handle = _open_pipe(\%input_properties,
                                 \%output_properties,
                                 $to);
-        print $handle ($piddle->get_dataref->$*);
+        if ($piddle->type  ==  short) {
+            print $handle ($piddle->get_dataref->$*);
+        }
+        else {
+            my $data = short($piddle/$piddle->abs->max * $amplitude);
+            print $handle ($data->get_dataref->$*);
+        }
         close $handle;
     }
 
