@@ -172,9 +172,11 @@ for my $entry (@score) {
     if ((my $handler = $type_dispatch{$type})) {
         &$handler(@params);
     }
+    elsif ($type eq '_end') {
+        _end($start_time);
+    }
     else {
         warn "Type '$type' not handled\n";
-        _end($start_time);
     }
 }
 
