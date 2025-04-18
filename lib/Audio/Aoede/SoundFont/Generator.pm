@@ -73,6 +73,7 @@ class Audio::Aoede::SoundFont::Generator {
     field $velRange                   :param = [0,127]; # 44
 
     field $sfSample                   :param;
+    field $name               :reader :param = q([no name]);
     field $samples; # the data after applying our filter
 
     use PDL;
@@ -110,6 +111,7 @@ class Audio::Aoede::SoundFont::Generator {
             decayModEnv      => $decayModEnv,
             sustainModEnv    => $sustainModEnv,
             releaseModEnv    => $releaseModEnv,
+            modEnvToPitch    => $modEnvToPitch,
             initialFilterFc  => $initialFilterFc,
             modEnvToFilterFc => $modEnvToFilterFc,
         );
@@ -138,7 +140,7 @@ class Audio::Aoede::SoundFont::Generator {
         my $xi = sequence($n_samples * $factor) / $factor;
         my $resampled = $obj->interpolate($xi);
         $resampled *= cB_to_amplitude_factor(-$initialAttenuation);
-        if ($self->_sound_loops) {
+        if ($sampleModes & 1) { # Sound loops
             my $start_loop = $sfSample->start_loop
                 + $startloopAddrsCoarseOffset * 2**15
                 + $startloopAddrsOffset;
@@ -152,10 +154,6 @@ class Audio::Aoede::SoundFont::Generator {
             return ($resampled->slice([$start*$factor,$end*$factor-1]),
                     empty);
         }
-    }
-
-    method _sound_loops () {
-        return ($sampleModes & 1);
     }
 }
 

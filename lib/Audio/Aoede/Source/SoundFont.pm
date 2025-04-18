@@ -11,6 +11,7 @@ class Audio::Aoede::Source::SoundFont {
     use Audio::Aoede::Link;
 
     field $note       :param;
+    field $name       :param :reader = q([no name]);
     field $rate       :param;
     field $velocity   :param = 96;
     field $sound      :param;
@@ -23,69 +24,71 @@ class Audio::Aoede::Source::SoundFont {
     field $link;
     field $released = 0;
     field $exhausted :reader = 0;
+    field $lowpass_filter;
 
     # FIXME: In the current implementation, "$since" is an absolute
     # number since the start of playing stuff.  The first call to
     # next_samples stores this time as $start and calculates $offset
     # as the time we spent in this note.
-    # AA::Source obtains its offset from a AA::Link as the start time.
-    # Confusion alert!  We should use the same terminology and
-    # implementation for both types of source.
     method next_samples ($n_samples,$since) {
         if (! $link) {
             $link = Audio::Aoede::Link->new(offset => $since);
+            $lowpass_filter = $mod_env->lowpass_filter;
         }
-        my $first = $since - $link->offset;
-        my $samples;
         if ($released) {
-            if ($trailer->dim(0) > $first + $n_samples) {
-                return $trailer->slice([$first,$first+$n_samples-1]);
-            }
-            elsif ($trailer->dim(0) == $first + $n_samples) {
-                $exhausted = 1;
-                return $trailer->slice([$first,-1]);
-            }
-            else {
-                my $rest = zeroes($n_samples);
-                $rest->slice([0,$trailer->dim(0)-$first-1]) =
-                    $trailer->slice([$first,-1]);
-                $exhausted = 1;
-                return $rest;
-            }
+            return $self->trailer_samples($n_samples,$since);
         }
         else {
+            my $first = $since - $link->offset;
+            my $samples;
             if ($first + $n_samples < $sound->dim(0)) {
-                $samples = $sound->slice([$first,$first+$n_samples-1]);
+                # Supply all samples from our source
+                $samples   = $sound->slice([$first,$first+$n_samples-1]);
             }
             elsif ($first + $n_samples == $sound->dim(0)) {
-                if ($loop->isempty) {
-                    $exhausted = 1;
-                }
-                $samples = $sound->slice([$first,$first+$n_samples-1]);
+                # Supply all samples from our source, check loops
+                $exhausted = $loop->isempty;
+                $samples   = $sound->slice([$first,$first+$n_samples-1]);
             }
             elsif ($loop->isempty) {
+                # Not enough samples in our source, no loops
                 $samples = zeroes($n_samples);
                 $samples->slice([0,$sound->dim(0)-$first-1]) =
                     $sound->slice([$first,-1]);
                 $exhausted = 1;
             }
             else {
+                # Process loops
                 my $n_loops = int(($first + $n_samples - $sound->dim(0)) / $loop->dim(0)) + 1;
                 $samples = $sound->glue(0,($loop) x $n_loops)->slice([$first,$first + $n_samples-1]);
             }
-            my $filtered_samples = $mod_env->apply($samples,$first);
-            # FIXME:  This is still unused
-            my $attenuated_samples = $vol_env->apply($filtered_samples,$first);
-            my $vol_env_samples = $vol_env->env_samples;
-            if (! $vol_env_samples->isempty) {
-                if ($vol_env_samples->dim(0) >= $first+$n_samples ) {
-                    $filtered_samples *= $vol_env_samples->slice([$first,$first+$n_samples-1]);
-                } else {
-                    my $attenuation = ones($first+$n_samples) * $vol_env->sustain;
-                    $attenuation->slice([0,$vol_env_samples->dim(0)]) = $vol_env_samples;
-                }
+
+            # Now apply the envelopes
+            if ($lowpass_filter) {
+                my $cutoff_data = $mod_env->cutoff_data($first,$n_samples);
+                $samples = $lowpass_filter->process($samples,$cutoff_data);
             }
-            return $filtered_samples * $velocity/127;
+            $samples *= $vol_env->env_samples($first,$n_samples);
+            return $samples * $velocity/127;
+        }
+    }
+
+
+    method trailer_samples ($n_samples,$since) {
+        my $first = $since - $link->offset;
+        if ($trailer->dim(0) > $first + $n_samples) {
+            return $trailer->slice([$first,$first+$n_samples-1]);
+        }
+        elsif ($trailer->dim(0) == $first + $n_samples) {
+            $exhausted = 1;
+            return $trailer->slice([$first,-1]);
+        }
+        else {
+            my $rest = zeroes($n_samples);
+            $rest->slice([0,$trailer->dim(0)-$first-1]) =
+                $trailer->slice([$first,-1]);
+            $exhausted = 1;
+            return $rest;
         }
     }
 

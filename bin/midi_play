@@ -30,8 +30,8 @@ my $player = Audio::Aoede::Player::SoX->new(
 my $midi_path = $ARGV[0] || "$FindBin::Bin/../midi/westmister_chimes.mid";
 # FIXME: The next line should be a configuration item
 my $soundfont = '/usr/share/sounds/sf2/sf_GMbank.sf2';
-$soundfont = '/usr/share/sounds/sf2/FluidR3_GM.sf2';
-#$soundfont = '/usr/share/sounds/sf2/TimGM6mb.sf2';
+# $soundfont = '/usr/share/sounds/sf2/FluidR3_GM.sf2';
+$soundfont = '/usr/share/sounds/sf2/TimGM6mb.sf2';
 my $midi     = MIDI::Simple->read_score($midi_path);
 my $tempo    = $midi->Tempo;
 my $end_time = $midi->Time;
@@ -78,7 +78,33 @@ sub time_signature ($numerator,$denominator,$metronome_clicks,$bb) {
     };
 }
 
-sub _end {
+my $attenuation = 1.0;
+my $volume      = 1.0;
+
+sub _end ($end_time) {
+    # Collect and play all remaining trailers, play in batches of 0.1 seconds
+    my $batch = 0.1;
+    my $n_samples = $rate * $batch;
+    while (scalar @notes) {
+        my @channels = (zeroes($n_samples),zeroes($n_samples));
+        for my $note (@notes) {
+            my ($source,$duration,$channel) = @$note;
+            my $left  = 1/1000 * (500 - $source->pan);
+            my $right = 1/1000 * (500 + $source->pan);
+            my $since   = int($end_time*$tick*$rate + 0.5);
+            my $samples = $source->trailer_samples($n_samples,$since);
+            $channels[0] += $left  * $samples;
+            $channels[1] += $right * $samples;
+        }
+        my $sound = cat(@channels)->transpose;
+        my $max = $sound->abs->max;
+        if ($max * $attenuation > $volume * 2**15) {
+            $attenuation = $volume * 2**15 / $max;
+        }
+        $player->send_piddle(short ($sound * $attenuation));
+        $end_time += int($batch/$tick+0.5);
+        @notes = grep { ! $_->[0]->exhausted } @notes;
+    }
     say "Done!";
 }
 
@@ -90,11 +116,9 @@ my %type_dispatch = (
     note           => \&note,
     set_tempo      => \&set_tempo,
     time_signature => \&time_signature,
-    _end           => \&_end,
+#    _end           => \&_end,
 );
 
-my $attenuation = 1.0;
-my $volume      = 1.0;
 patch_change(128,0); # make sure we have a default patch
 $player->open_pipe;
 for my $entry (@score) {
@@ -150,6 +174,9 @@ for my $entry (@score) {
     }
     else {
         warn "Type '$type' not handled\n";
+        _end($start_time);
     }
 }
+
+
 $player->close_pipe;

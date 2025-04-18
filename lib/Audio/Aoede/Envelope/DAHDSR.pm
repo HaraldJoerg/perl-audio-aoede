@@ -19,17 +19,17 @@ field $hold    :param = 0;
 field $decay   :param :reader = 0;
 field $sustain :param :reader = 1;
 field $release :param :reader = 0;
-field $env_samples :reader;
+field $env_samples;
 field $rel_samples :reader = empty;
 
 
 sub new_from_sf ($class, %sf_params) {
     my %params = (rate => $sf_params{rate});
     for my ($key,$value) (%sf_params) {
-        if ($key =~ /sustainModEnv/) {
+        if ($key eq 'sustainModEnv') {
             $params{sustain} = 1-$value/1000;
         }
-        elsif ($key =~ /sustainVolEnv/) {
+        elsif ($key eq 'sustainVolEnv') {
             $params{sustain} = 1/cB_to_amplitude_factor($value);
         }
         elsif (my ($name) = $key =~ /(^\w+)(Mod|Vol)Env/) {
@@ -67,6 +67,27 @@ ADJUST {
 
 method append_env_samples ($samples) {
     $env_samples = $env_samples->append($samples);
+}
+
+
+# Return $n_samples samples, starting at first.
+method env_samples ($first,$n_samples) {
+    my $env_n = $env_samples->dim(0);
+    if ($first + $n_samples <= $env_n) {
+        return $env_samples->slice([$first,$first+$n_samples-1]);
+    }
+    elsif ($first == $env_n) {
+        return zeroes($n_samples) + $sustain;
+    }
+    elsif ($first < $env_n) {
+        my $env = zeroes($n_samples);
+        $env->slice([0,$env_n-$first-1]) .= $env_samples->slice([$first,-1]);
+        $env->slice([$env_n-$first,-1]) .= $sustain;
+        return $env;
+    }
+    else {
+        return zeroes($n_samples) + $sustain;
+    }
 }
 
 

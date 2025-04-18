@@ -28,10 +28,4 @@ ADJUST {
 }
 
 
-method apply ($samples,$first) {
-    if (! $self->env_samples->isempty) {
-    }
-}
-
-
 1;

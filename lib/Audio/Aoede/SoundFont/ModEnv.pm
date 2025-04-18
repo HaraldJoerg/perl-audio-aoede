@@ -11,14 +11,18 @@ class Audio::Aoede::SoundFont::ModEnv
     :isa(Audio::Aoede::Envelope::DAHDSR);
 
 use PDL;
+use PDL::Filter::Biquad;
 
 use Audio::Aoede::Units qw( CENT MIDI_0 );
 
-field $initialFilterFc  :param = 13500;
+use constant max_initialFilterFc => 13500;
+use constant no_filter_cutoff => MIDI_0 * CENT ** max_initialFilterFc;
+
+field $modEnvToPitch    :param = 0;
+field $initialFilterFc  :param = max_initialFilterFc;
 field $modEnvToFilterFc :param = 0;
 field $initial_cutoff = MIDI_0 * CENT ** $initialFilterFc;
-field $actual_cutoff;
-
+field $actual_cutoff  = $initial_cutoff;
 
 ADJUST {
     if (my $decay = $self->decay) {
@@ -32,36 +36,36 @@ ADJUST {
         my $attenuation = 1 - sequence($n_samples+1) / $n_samples;
         $self->set_rel_samples($attenuation);
     }
+    if ($initialFilterFc >= max_initialFilterFc) {
+        undef $actual_cutoff;
+    }
 }
 
 
 method adjust_filter_cutoff ($interval) {
     $actual_cutoff = $initial_cutoff * $interval;
+    if ($actual_cutoff >= no_filter_cutoff) {
+        undef $actual_cutoff;
+    }
 }
 
 
-method apply ($samples,$offset) {
-    if ($self->env_samples->isempty) {
-        return $samples;
-    }
-    require Audio::Aoede::Filter::Biquad;
-    my $filter = Audio::Aoede::Filter::Biquad->new(
-        samplerate => $self->rate,
-        cutoff     => $actual_cutoff,
-    );
-    my @filtered;
-    for my ($index,$sample) (builtin::indexed $samples->list) {
-        my $filtered = $filter->process_sample($sample);
-        push @filtered,$filtered;
-        my $element = $index < $self->env_samples->dim(0)
-            ? $index
-            : $self->env_samples->dim(0)-1;
-        my $env_at_element = $self->env_samples->at($element);
-        my $effective_cutoff = $actual_cutoff *
-            CENT ** ($modEnvToFilterFc * $env_at_element);
-        $filter->set_cutoff($effective_cutoff);
-    }
-    return pdl(@filtered);
+method lowpass_filter () {
+    return $modEnvToFilterFc
+        ? PDL::Filter::Biquad->new(samplerate => $self->rate)
+        : undef;
+}
+
+
+method cutoff_data ($first,$n_samples) {
+    return $modEnvToFilterFc
+        ? $actual_cutoff
+            * CENT ** ($self->env_samples($first,$n_samples)*$modEnvToFilterFc)
+        : $actual_cutoff;
+}
+
+
+method modulate_pitch ($samples,$first,$n_samples) {
 }
 
 1;

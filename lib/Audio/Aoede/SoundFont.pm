@@ -102,6 +102,7 @@ class Audio::Aoede::SoundFont {
                             Audio::Aoede::SoundFont::Generator->new(
                                 %effective_generators,
                                 sfSample => $samples{$sample_id},
+                                name     => $instrument_name,
                             );
                         # So, let's collect that stuff for diagnostics.
                         push @main::generators,
@@ -137,6 +138,7 @@ class Audio::Aoede::SoundFont {
         for my $generator (@generators) {
             my ($sound,$loop) = $generator->resample($note,$rate);
             my $source = Audio::Aoede::Source::SoundFont->new(
+                name      => $generator->name,
                 note      => $note,
                 rate      => $rate,
                 velocity  => $velocity,
