@@ -6,7 +6,6 @@ requires 'FindBin';
 requires 'Feature::Compat::Class', '0.07';
 requires 'Getopt::Long';
 requires 'List::Util';
-requires 'Math::Trig';
 requires 'Midi::Simple';
 requires 'Midi::SoundFont';
 requires 'PDL', 2.099;

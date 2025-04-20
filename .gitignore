@@ -1,5 +1,12 @@
 # Specific to this dist: Ignore the build result
 /Audio-Aoede*
+# Specific to this project
+*-pp-*.c
+lib/Audio/Aoede/SoundFont/Resample.c
+lib/Audio/Aoede/SoundFont/Resample.pm
+lib/Audio/Aoede/SoundFont/Resample.xs
+# This file is auto-generated
+
 
 # Standard stuff from various build tools
 !Build/

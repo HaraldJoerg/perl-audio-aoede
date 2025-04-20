@@ -1,10 +1,14 @@
 # ABSTRACT: A Biquad filter for real-time application
+
+# CAVEAT: This module has been superseded by PDL::Filter::Biquad
+# and should be deleted from the repository
+
 package Audio::Aoede::Filter::Biquad;
 use 5.038;
 
 use strict;
 use warnings;
-use Math::Trig qw(pi tan);
+use constant PI => atan2(0,-1);
 
 sub new {
     my ($class, %opts) = @_;
@@ -20,6 +24,7 @@ sub new {
     $self->_recalculate();
     return $self;
 }
+
 
 sub set_cutoff {
     my ($self, $cutoff) = @_;
@@ -39,7 +44,7 @@ sub _recalculate {
     my $fc = $self->{cutoff};
     my $q  = $self->{q};
 
-    my $w0 = 2 * pi * $fc / $sr;
+    my $w0 = 2 * PI * $fc / $sr;
     my $alpha = sin($w0) / (2 * $q);
 
     my $cos_w0 = cos($w0);
