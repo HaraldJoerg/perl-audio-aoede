@@ -58,7 +58,7 @@ method lowpass_filter () {
 
 
 method cutoff_data ($first,$n_samples) {
-    return $modEnvToFilterFc
+    return ($modEnvToFilterFc && $actual_cutoff) # We need both for envelope
         ? $actual_cutoff
             * CENT ** ($self->env_samples($first,$n_samples)*$modEnvToFilterFc)
         : $actual_cutoff;

@@ -31,7 +31,7 @@ my $midi_path = $ARGV[0] || "$FindBin::Bin/../midi/westmister_chimes.mid";
 # FIXME: The next line should be a configuration item
 my $soundfont = '/usr/share/sounds/sf2/sf_GMbank.sf2';
 # $soundfont = '/usr/share/sounds/sf2/FluidR3_GM.sf2';
-$soundfont = '/usr/share/sounds/sf2/TimGM6mb.sf2';
+# $soundfont = '/usr/share/sounds/sf2/TimGM6mb.sf2';
 my $midi     = MIDI::Simple->read_score($midi_path);
 my $tempo    = $midi->Tempo;
 my $end_time = $midi->Time;
@@ -164,8 +164,8 @@ for my $entry (@score) {
         $current_time = $start_time;
         my $sound = cat(@channels)->transpose;
         my $max = $sound->abs->max;
-        if ($max * $attenuation > $volume * 2**15) {
-            $attenuation = $volume * 2**15 / $max;
+        if ($max * $attenuation > $volume * 2**14) {
+            $attenuation = $volume * 2**14 / $max;
         }
         $player->send_piddle(short ($sound * $attenuation));
     }

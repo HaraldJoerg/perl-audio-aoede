@@ -14,6 +14,7 @@ class Audio::Aoede::SoundFont::Generator {
     use Audio::Aoede::Envelope::DAHDSR;
     use Audio::Aoede::SoundFont::ModEnv;
     use Audio::Aoede::SoundFont::VolEnv;
+    use Audio::Aoede::SoundFont::Resample;
     # The fields are ordered alphabetically here.
     # Comments indicate the number given to the parameter
     # in the SoundFont Technical Specification, section 8.1.2.
@@ -76,6 +77,8 @@ class Audio::Aoede::SoundFont::Generator {
     field $name               :reader :param = q([no name]);
     field $samples; # the data after applying our filter
 
+    field %mod_env_cache;
+    
     use PDL;
     use PDL::Func;
 
@@ -103,6 +106,15 @@ class Audio::Aoede::SoundFont::Generator {
     }
 
     method mod_env ($note,$rate) {
+        if (my $mod_env = $mod_env_cache{$note}{$rate}) {
+            return $mod_env;
+        }
+        if ($modEnvToPitch) {
+            say "Cheating! Set Attack to 0";
+            $attackModEnv = 0;
+            $sustainModEnv = 0;
+            $modEnvToPitch = abs $modEnvToPitch;
+        }
         my $mod_env = Audio::Aoede::SoundFont::ModEnv->new_from_sf(
             rate             => $rate,
             delayModEnv      => $delayModEnv,
@@ -118,11 +130,15 @@ class Audio::Aoede::SoundFont::Generator {
         my $key = $overridingRootKey || $sfSample->by_original_key;
         my $interval = HALFTONE ** ($note - $key) * CENT ** $fineTune;
         $mod_env->adjust_filter_cutoff($interval);
+        $mod_env_cache{$note}{$rate} = $mod_env;
         return $mod_env;
     }
 
     method resample ($note,$rate) {
         die "We have no samples" unless $sfSample;
+        my $resampled;
+        my $loop = empty;
+        
         my $start = $sfSample->start
             + $startAddrsCoarseOffset * 2**15
             + $startAddrsOffset;
@@ -131,29 +147,61 @@ class Audio::Aoede::SoundFont::Generator {
             + $endAddrsOffset;
 
         my $n_samples = $end - $start;
-        my $obj = PDL::Func->init( Interpolate => "Linear" );
-        $obj->set(x => sequence ($n_samples),
-                  y => $samples->slice([$start,$end-1]));
         my $key = $overridingRootKey || $sfSample->by_original_key;
         my $interval = HALFTONE ** ($note - $key) * CENT ** $fineTune;
-        my $factor = $rate/$sfSample->rate / $interval;
-        my $xi = sequence($n_samples * $factor) / $factor;
-        my $resampled = $obj->interpolate($xi);
-        $resampled *= cB_to_amplitude_factor(-$initialAttenuation);
-        if ($sampleModes & 1) { # Sound loops
-            my $start_loop = $sfSample->start_loop
-                + $startloopAddrsCoarseOffset * 2**15
-                + $startloopAddrsOffset;
-            my $end_loop = $sfSample->end_loop
-                + $endloopAddrsCoarseOffset * 2**15
-                + $endloopAddrsOffset;
-            return ($resampled->slice([$start*$factor,$start_loop*$factor-1]),
-                    $resampled->slice([$start_loop*$factor,$end_loop*$factor-1]));
+        my $xi;
+        # if ($sampleModes & 1) { # Sound loops
+        #     my $start_loop = $sfSample->start_loop
+        #         + $startloopAddrsCoarseOffset * 2**15
+        #         + $startloopAddrsOffset;
+        #     my $end_loop = $sfSample->end_loop
+        #         + $endloopAddrsCoarseOffset * 2**15
+        #         + $endloopAddrsOffset;
+        # }
+        if ($modEnvToPitch) {
+            say "$name: Key=$key+$interval: We have modEnvToPitch = $modEnvToPitch";
+            my $mod_env = $self->mod_env($note,$rate);
+            my $mod_samples = $mod_env->env_samples(0,$end-$start);
+            $interval *= CENT ** ($modEnvToPitch * $mod_samples);
+            $interval *= $sfSample->rate/$rate;
+            $xi = $interval->copy;
+            if ($sampleModes & 1) { # Sound loops
+                my $start_loop = $sfSample->start_loop
+                    + $startloopAddrsCoarseOffset * 2**15
+                    + $startloopAddrsOffset;
+                my $end_loop = $sfSample->end_loop
+                    + $endloopAddrsCoarseOffset * 2**15
+                    + $endloopAddrsOffset;
+                my $state = pdl(0);
+                $resampled = resample_with_loop(
+                    $samples->slice([$start,$end-1]),
+                    $xi,$state,$start_loop,$end_loop);
+            }
         }
         else {
-            return ($resampled->slice([$start*$factor,$end*$factor-1]),
-                    empty);
+            my $obj = PDL::Func->init( Interpolate => "Linear" );
+            $obj->set(x => sequence ($n_samples),
+                      y => $samples->slice([$start,$end-1]));
+            my $factor = $rate/$sfSample->rate / $interval;
+            $xi = sequence($n_samples * $factor) / $factor;
+            my $resampled = $obj->interpolate($xi);
+            if ($sampleModes & 1) { # Sound loops
+                my $start_loop = $sfSample->start_loop
+                    + $startloopAddrsCoarseOffset * 2**15
+                    + $startloopAddrsOffset;
+                my $end_loop = $sfSample->end_loop
+                    + $endloopAddrsCoarseOffset * 2**15
+                    + $endloopAddrsOffset;
+                return ($resampled->slice([$start*$factor,$start_loop*$factor-1]),
+                        $resampled->slice([$start_loop*$factor,$end_loop*$factor-1]));
+            }
+            else {
+                return ($resampled->slice([$start*$factor,$end*$factor-1]),
+                        empty);
+            }
         }
+        $resampled *= cB_to_amplitude_factor(-$initialAttenuation);
+        return ($resampled,$loop);
     }
 }
 
