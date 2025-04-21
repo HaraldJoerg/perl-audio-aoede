@@ -184,3 +184,66 @@ for my $entry (@score) {
 
 
 $player->close_pipe;
+
+__END__
+
+=encoding utf8
+
+=head1 NAME
+
+midi_play - Play a MIDI file through SoX
+
+=head1 SYNOPSIS
+
+  $ midi_play foo.mid  # Play immediately
+  $ midi_play foo.mid foo.ogg # convert to a .ogg file
+
+=head1 DESCRIPTION
+
+This program combines a MIDI file and a SoundFont file (hardwired,
+sorry for that) into raw sound data, and pipes it to SoX (an audio
+player for many platforms).  SoX can either play the data or convert
+them to a selection of audio formats.
+
+=head1 OPTIONS
+
+The program takes two positional parameters.  The first parameter is
+the path to a MIDI file and is required.  If a second parameter is
+given, it should be a path to an output file in one of the formats
+which SoX can create (.ogg, .wav, .mp3 - the exact list depend on how
+SoX was compiled).
+
+=head1 ERRORS
+
+The error handling of this program is very rudimentary.  If a MIDI
+file contains an unimplemented command, you get a warning and
+processing continues.
+
+=head1 BUGS
+
+The path to the SoundFont file is hardcoded in the source.
+
+Several MIDI commands are not supported.  We do C<text_event>,
+C<patch_change>, C<note>, C<set_tempo> and C<time_signature> only.
+
+Several SoundFont generators and modulators are silently ignored, and
+some might be implemented with a wrong algorithm.
+
+=head1 RESTRICTIONS
+
+I do not plan to support F<.sf3> soundfont files.
+
+=head1 AUTHOR
+
+Harald Jörg, E<lt>haj@posteo.deE<gt>
+
+=head1 COPYRIGHT AND LICENSE
+
+Copyright 2025 Harald Jörg.
+
+This file is part of the Audio-Aoede suite.  This is free software;
+you may redistribute it and/or modify it under the same terms as Perl
+itself.
+
+=cut
+
