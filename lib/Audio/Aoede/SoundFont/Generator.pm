@@ -109,12 +109,6 @@ class Audio::Aoede::SoundFont::Generator {
         if (my $mod_env = $mod_env_cache{$note}{$rate}) {
             return $mod_env;
         }
-        if ($modEnvToPitch) {
-            say "Cheating! Set Attack to 0";
-            $attackModEnv = 0;
-            $sustainModEnv = 0;
-            $modEnvToPitch = abs $modEnvToPitch;
-        }
         my $mod_env = Audio::Aoede::SoundFont::ModEnv->new_from_sf(
             rate             => $rate,
             delayModEnv      => $delayModEnv,
@@ -150,16 +144,7 @@ class Audio::Aoede::SoundFont::Generator {
         my $key = $overridingRootKey || $sfSample->by_original_key;
         my $interval = HALFTONE ** ($note - $key) * CENT ** $fineTune;
         my $xi;
-        # if ($sampleModes & 1) { # Sound loops
-        #     my $start_loop = $sfSample->start_loop
-        #         + $startloopAddrsCoarseOffset * 2**15
-        #         + $startloopAddrsOffset;
-        #     my $end_loop = $sfSample->end_loop
-        #         + $endloopAddrsCoarseOffset * 2**15
-        #         + $endloopAddrsOffset;
-        # }
         if ($modEnvToPitch) {
-            say "$name: Key=$key+$interval: We have modEnvToPitch = $modEnvToPitch";
             my $mod_env = $self->mod_env($note,$rate);
             my $mod_samples = $mod_env->env_samples(0,$end-$start);
             $interval *= CENT ** ($modEnvToPitch * $mod_samples);
