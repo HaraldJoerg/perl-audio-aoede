@@ -53,7 +53,7 @@ class Audio::Aoede::Source::SoundFont {
             elsif ($loop->isempty) {
                 # Not enough samples in our source, no loops
                 $samples = zeroes($n_samples);
-                $samples->slice([0,$sound->dim(0)-$first-1]) =
+                $samples->slice([0,$sound->dim(0)-$first-1]) .=
                     $sound->slice([$first,-1]);
                 $exhausted = 1;
             }

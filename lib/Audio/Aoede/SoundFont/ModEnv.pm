@@ -43,15 +43,14 @@ ADJUST {
 
 
 method adjust_filter_cutoff ($interval) {
-    $actual_cutoff = $initial_cutoff * $interval;
-    if ($actual_cutoff >= no_filter_cutoff) {
-        undef $actual_cutoff;
-    }
+    $actual_cutoff = $initial_cutoff < no_filter_cutoff
+        ? $initial_cutoff * $interval
+        : undef;
 }
 
 
 method lowpass_filter () {
-    return $modEnvToFilterFc
+    return ($modEnvToFilterFc && $actual_cutoff)
         ? PDL::Filter::Biquad->new(samplerate => $self->rate)
         : undef;
 }
@@ -62,10 +61,6 @@ method cutoff_data ($first,$n_samples) {
         ? $actual_cutoff
             * CENT ** ($self->env_samples($first,$n_samples)*$modEnvToFilterFc)
         : $actual_cutoff;
-}
-
-
-method modulate_pitch ($samples,$first,$n_samples) {
 }
 
 1;

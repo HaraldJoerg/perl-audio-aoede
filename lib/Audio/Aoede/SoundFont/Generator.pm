@@ -78,7 +78,7 @@ class Audio::Aoede::SoundFont::Generator {
     field $samples; # the data after applying our filter
 
     field %mod_env_cache;
-    
+
     use PDL;
     use PDL::Func;
 
@@ -138,7 +138,7 @@ class Audio::Aoede::SoundFont::Generator {
         die "We have no samples" unless $sfSample;
         my $resampled;
         my $loop = empty;
-        
+
         my $start = $sfSample->start
             + $startAddrsCoarseOffset * 2**15
             + $startAddrsOffset;
