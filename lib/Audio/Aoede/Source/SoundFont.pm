@@ -85,7 +85,7 @@ class Audio::Aoede::Source::SoundFont {
         }
         else {
             my $rest = zeroes($n_samples);
-            $rest->slice([0,$trailer->dim(0)-$first-1]) =
+            $rest->slice([0,$trailer->dim(0)-$first-1]) .=
                 $trailer->slice([$first,-1]);
             $exhausted = 1;
             return $rest;

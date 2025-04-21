@@ -44,7 +44,6 @@ my @score = $midi->Score;
 @score = sort { $a->[1] <=> $b->[1] } @score;
 push @score,['_end' => $end_time];
 
-my $current_time = 0;
 my @current_patches;
 
 # ----------------------------------------------------------------------
@@ -121,25 +120,28 @@ my %type_dispatch = (
 
 patch_change(128,0); # make sure we have a default patch
 $player->open_pipe;
+my $current_time = 0;
+my $samples_done = 0;
 for my $entry (@score) {
     my ($type,$start_time,@params) = @$entry;
     if ($start_time > $current_time) {
-        my $todo = ($start_time - $current_time) * $tick;
-        my $n_samples = int($rate * $todo + 0.5);
+        my $todo = $start_time - $current_time;
+        my $since   = int($current_time*$tick*$rate + 0.5);
+        my $to      = int($start_time*$tick*$rate + 0.5);
+        my $n_samples = $to-$since;
         my @channels = (zeroes($n_samples),zeroes($n_samples));
       NOTE:
         for my $note (@notes) {
-            my $since   = int($current_time*$tick*$rate + 0.5);
             my ($source,$duration,$channel) = @$note;
             my $left  = 1/1000 * (500 - $source->pan);
             my $right = 1/1000 * (500 + $source->pan);
-            if ($duration * $tick > $todo) {
+            if ($duration > $todo) {
                 my $samples = $source->next_samples($n_samples,$since);
                 $channels[0] += $left  * $samples;
                 $channels[1] += $right * $samples;
                 $note->[1] = $duration - $start_time + $current_time;
             }
-            elsif ($duration * $tick == $todo) {
+            elsif ($duration == $todo) {
                 my $samples = $source->next_samples($n_samples,$since);
                 $channels[0] += $left  * $samples;
                 $channels[1] += $right * $samples;
