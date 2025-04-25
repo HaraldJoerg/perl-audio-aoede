@@ -1,9 +1,11 @@
 package Audio::Aoede::Functions 0.01;
+use 5.036;
 
 use feature 'signatures';
 no warnings 'experimental';
 
 use Exporter qw( import );
+
 BEGIN {
     our @EXPORT_OK = qw( confine );
     our %EXPORT_TAGS = (
@@ -14,7 +16,7 @@ BEGIN {
     );
     Exporter::export_ok_tags('waves');
 }
-use PDL::Lite;
+use PDL;
 
 use Audio::Aoede::Units qw( PI );
 
@@ -24,7 +26,7 @@ sub confine {
     if ($value < $min) {
         $value = $min;
     }
-    elsif ($value > max) {
+    elsif ($value > $max) {
         $value = $max;
     }
     return $value;
@@ -60,7 +62,7 @@ sub f_square_wave ($rate) {
 }
 
 
-sub f_sawtooth_wave {
+sub f_sawtooth_wave ($rate) {
     return sub ($n_samples, $frequency, $since = 0) {
         my $total_periods      = $since * $frequency / $rate;
         my $samples_per_period = $rate / $frequency;
