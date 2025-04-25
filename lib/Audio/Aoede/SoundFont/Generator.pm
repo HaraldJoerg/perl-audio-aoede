@@ -158,6 +158,10 @@ class Audio::Aoede::SoundFont::Generator {
                     + $endloopAddrsCoarseOffset * 2**15
                     + $endloopAddrsOffset;
                 my $state = pdl(0);
+                warn sprintf("Warning: The generator for %s "
+                             . "has modEnvToPitch and also a loop. "
+                             . "This is not yet implemented.",
+                             $self->name);
                 $resampled = resample_with_loop(
                     $samples->slice([$start,$end-1]),
                     $xi,$state,$start_loop,$end_loop);
