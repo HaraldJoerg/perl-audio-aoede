@@ -168,11 +168,22 @@ class Audio::Aoede {
     }
 
     method play_notes (@notes) {
+        require Audio::Aoede::Chord;
+        require Audio::Aoede::Note;
         require Audio::Aoede::Track;
         require Audio::Aoede::Timbre::Vibraphone;
         my $track = Audio::Aoede::Track->new
             (timbre => Audio::Aoede::Timbre::Vibraphone::vibraphone());
-        $track->add_notes(@notes);
+        for my ($note,$duration) (@notes) {
+            $track->add_notes(
+                Audio::Aoede::Chord->new(
+                    notes => [ map { Audio::Aoede::Note->from_spn($_) }
+                               split(/\s*\+\s*/,$note)
+                           ],
+                    duration => $duration,
+                )
+            );
+        }
         my $voice =  Audio::Aoede::Voice->new(rate => $rate,
                                               tuning => $tuning);
         $voice->add_notes($track);
