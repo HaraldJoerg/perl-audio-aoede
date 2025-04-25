@@ -3,9 +3,6 @@ use 5.032;
 use feature "signatures";
 no warnings "experimental";
 
-use FindBin;
-use lib "$FindBin::Bin/../lib";
-
 use Audio::Aoede::Player::SoX;
 use Audio::Aoede::SoundFont;
 
@@ -19,6 +16,7 @@ my $out = $ARGV[1];
 
 use MIDI::Simple ();
 use PDL;
+use Pod::Usage;
 
 my $player = Audio::Aoede::Player::SoX->new(
     rate => $rate,
@@ -27,11 +25,12 @@ my $player = Audio::Aoede::Player::SoX->new(
     out => $out,
 );
 
-my $midi_path = $ARGV[0] || "$FindBin::Bin/../midi/westmister_chimes.mid";
 # FIXME: The next line should be a configuration item
 my $soundfont = '/usr/share/sounds/sf2/sf_GMbank.sf2';
 # $soundfont = '/usr/share/sounds/sf2/FluidR3_GM.sf2';
 # $soundfont = '/usr/share/sounds/sf2/TimGM6mb.sf2';
+my $midi_path = $ARGV[0]
+    or pod2usage "No MIDI file name given: Terminating.";
 my $midi     = MIDI::Simple->read_score($midi_path);
 my $tempo    = $midi->Tempo;
 my $end_time = $midi->Time;
