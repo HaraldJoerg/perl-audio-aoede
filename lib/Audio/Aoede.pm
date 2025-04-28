@@ -101,7 +101,7 @@ class Audio::Aoede {
             for my $track ($section->tracks) {
                 require Audio::Aoede::Timbre::Vibraphone;
                 $track->set_timbre(Audio::Aoede::Timbre::Vibraphone::vibraphone());
-               if (! $voices[$i_track]) {
+                if (! $voices[$i_track]) {
                     $voices[$i_track] =
                         Audio::Aoede::Voice->new(rate => $rate,
                                                  tuning => $tuning);

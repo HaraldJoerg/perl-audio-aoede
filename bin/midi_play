@@ -63,7 +63,8 @@ sub patch_change ($channel,$patch_number) {
 }
 
 sub note ($duration,$channel,$note,$velocity) {
-    my @sources = $sf->sources($channel,$current_patches[$channel],$note,$velocity,$rate);
+    my @sources = $sf->sources($channel,$current_patches[$channel],
+                               $note,$velocity,$rate);
     push @notes,map { [$_,$duration,$channel] } @sources;
 }
 
@@ -75,6 +76,17 @@ sub time_signature ($numerator,$denominator,$metronome_clicks,$bb) {
         bb               => $bb,
     };
 }
+
+
+sub track_name ($start_time,$text) {
+    say qq(t+$start_time: Track '$text');
+}
+
+
+sub control_change ($start_time,$channel,$controller,$value) {
+    say "t+$start_time channel $channel: $controller->$value";
+}
+
 
 my $attenuation = 1.0;
 my $volume      = 1.0;
@@ -114,7 +126,8 @@ my %type_dispatch = (
     note           => \&note,
     set_tempo      => \&set_tempo,
     time_signature => \&time_signature,
-#    _end           => \&_end,
+    # The following are not really supported, just for diagnostics
+    
 );
 
 patch_change(128,0); # make sure we have a default patch
@@ -175,6 +188,15 @@ for my $entry (@score) {
     }
     elsif ($type eq '_end') {
         _end($start_time);
+    }
+    elsif ($type eq 'track_name') {
+        track_name($start_time,@params);
+    }
+    elsif ($type =~ /^control_change/) {
+        control_change($start_time,@params);
+    }
+    elsif ($type =~ /^channel/) {
+        say qq(t+$start_time: $type(@params));
     }
     else {
         warn "Type '$type' not handled\n";
