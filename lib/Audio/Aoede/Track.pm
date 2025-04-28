@@ -28,5 +28,6 @@ method set_timbre ($new) {
 
 method add_notes (@new) {
     push @notes,@new;
+    return $self;
 }
 1;
