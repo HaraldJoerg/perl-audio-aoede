@@ -13,7 +13,7 @@ class Audio::Aoede::Source {
     field $volume   :param :reader = 1;
     field $function :param :reader = undef;
     field $rate     :param :reader;
-    field $effects :param = [];
+    field $effects  :param = [];
     field @effects = ();
     # These fields are used if a source is read in batches
     field $link     = Audio::Aoede::Link->new;
@@ -46,7 +46,7 @@ class Audio::Aoede::Source {
             $samples = $self->trailer_samples($n_samples,$first - $offset);
         }
         else {
-            $samples = $volume * $function->($n_samples,$rate,$first - $offset);
+            $samples = $volume * $function->($n_samples,$first - $offset);
             for my $effect (@effects) {
                 $samples = $effect->apply($samples,$first-$offset);
             }
@@ -70,12 +70,12 @@ class Audio::Aoede::Source {
                 if ($next >= $amplitude->dim(0)) {
                     @trailer = ($amplitude->slice([$trailer_done,-1])
                                 * $function->($amplitude->dim(0)-$trailer_done,
-                                              $rate,$first));
+                                              $first));
                     delete $trailer_amplitudes{$id}; # this effect is done
                 }
                 else {
                     @trailer = ($amplitude->slice([$trailer_done,$next-1])
-                                * $function->($n_samples,$rate,$first));
+                                * $function->($n_samples,$first));
                 }
             }
             @trailer;
@@ -95,9 +95,9 @@ class Audio::Aoede::Source {
     method trailer ($first) {
         my @amplitudes = map { $volume * $_->release($first) } @effects;
         my @trailers = map {
-            defined $_
-                ? $_ * $function->($_->dim(0),$rate,$first)
-                : pdl([])
+            isempty $_
+                ? empty
+                : $_ * $function->($_->dim(0),$first);
             } @amplitudes;
         return pdl(@trailers)->transpose->sumover;
     }

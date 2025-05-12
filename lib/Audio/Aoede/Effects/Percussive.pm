@@ -26,7 +26,8 @@ ADJUST {
     $noise = Audio::Aoede::Noise->gaussian(
         frequency => $frequency,
         width     => $width,
-    )->samples($duration,0) * $amplitude;
+        rate      => $rate,
+    )->next_samples($duration,0) * $amplitude;
 }
 
 
@@ -62,3 +63,38 @@ method release ($offset) {
 }
 
 1;
+__END__
+
+=encoding utf8
+
+=head1 NAME
+
+Audio::Aoede::Effects::Percussive - bring on the drums
+
+=head1 SYNOPSIS
+
+  use Audio::Aoede::Effects::Percussive;
+  # Well, don't.  This is a mess.
+
+=head1 DESCRIPTION
+
+This class is supposed to add some non-harmonic noise to a
+L<Audio::Aoede::Timbre> as an effect.  The motivation for that is that
+non-harmonic frequencies are often only audible at the beginning of
+the tone, while the harmonic frequencies have longer decay times due
+to resonance.  Our current timbre implementation treats envelopes as
+effects and only allows one single envelope which makes things messy.
+
+This is too difficult to handle, I would like to get rid of it.
+
+=head1 AUTHOR
+
+Harald Jörg, E<lt>haj@posteo.deE<gt>
+
+=head1 COPYRIGHT AND LICENSE
+
+Copyright 2025 Harald Jörg
+
+This module is free software; you may redistribute it and/or modify it
+under the same terms as Perl itself.
+

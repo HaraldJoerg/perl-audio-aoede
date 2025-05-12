@@ -172,3 +172,78 @@ class Audio::Aoede::SoundFont {
 }
 
 1;
+
+__END__
+
+=encoding utf8
+
+=head1 NAME
+
+Audio::Aoede::SoundFont - a class representing a .sf2 SoundFont file
+
+=head1 DESCRIPTION
+
+L<SoundFont|https://en.wikipedia.org/wiki/SoundFont> files are what
+today's MIDI synthesizers like
+L<timidity|https://de.wikipedia.org/wiki/Timidity%2B%2B> use to define
+how the MIDI instruments sound.
+
+SoundFont files contain samples recorded from real instruments which
+is a detour from Aoede's plan to create "sound from scratch".  But
+MIDI is everywhere, and it turned out to be an interesting challenge
+to process SoundFont files.
+
+The CPAN module L<MIDI::SoundFont> parses F<.sf2> files into a Perl
+data structure but does not do any processing.  This class (and the
+modules below its namespace) build on that.  They convert the data
+structure into Perl objects and allow a MIDI synthesizer to obtain the
+correct parameters to play a certain note with a certain instrument.
+
+The L<Audio::Aoede::Source::SoundFont> class uses this to use
+SoundFont as an L<Audio::Aoede::Source>.
+
+=head1 METHODS
+
+Most methods in this class are considered internal and not documented
+(yet).  This class has no useful standard constructor, the only way to
+get a Audio::Aoede::SoundFont object is by reading a .sf2
+file.
+
+=over
+
+=item C<< $sf = Audio::Aoede::SoundFont->from_file($path) >>
+
+Reads the F<.sf2> file given by $path and return the SoundFont object.
+Caveat: SoundFont files can be rather large.  For example, the Linux
+package timidity contains a 150MB soundfont file.  Do not try to dump
+the SoundFont data structure or inspect it in the Perl debugger unless
+you are really really patient.
+
+=back
+
+=head1 AUTHOR
+
+Harald Jörg, E<lt>haj@posteo.deE<gt>
+
+=head1 COPYRIGHT AND LICENSE
+
+Copyright 2025 Harald Jörg
+
+This module is free software; you may redistribute it and/or modify it
+under the same terms as Perl itself.
+
+=head1 SEE ALSO
+
+=over
+
+=item *
+
+The L<SoundFont Technical Specification|http://www.synthfont.com/sfspec24.pdf> Version 2.04, published 2002-09-10 (PDF, 69 pages)
+
+=item *
+
+On CPAN: L<MIDI::SoundFont> reads SoundFont files.  This module
+is up for adoption.
+
+=back
+

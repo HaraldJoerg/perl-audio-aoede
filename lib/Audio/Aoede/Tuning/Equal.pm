@@ -2,8 +2,6 @@
 package Audio::Aoede::Tuning::Equal;
 
 use Feature::Compat::Class;
-use feature 'signatures';
-use feature 'isa';
 no warnings 'experimental';
 
 class Audio::Aoede::Tuning::Equal;

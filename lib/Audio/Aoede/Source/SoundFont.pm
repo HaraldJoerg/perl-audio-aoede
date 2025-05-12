@@ -103,6 +103,64 @@ class Audio::Aoede::Source::SoundFont {
     }
 }
 
-
-
 1;
+
+__END__
+
+=encoding utf8
+
+=head1 NAME
+
+Audio::Aoede::Source::SoundFont - A SoundFont spec as a source
+
+=head1 SYNOPSIS
+
+  use Audio::Aoede::Source::SoundFont;
+  $source = Audio::Aoede::Source::SoundFont->new(...);
+
+  # ... actual use happens elsewhere:
+  $sound = $source->next_samples($n_samples,$since)
+
+=head1 DESCRIPTION
+
+This class makes the "correct" specifications of a SoundFont file
+available as an L<Audio::Aoede::Source>.  So, it plays the I<role> of
+a source, but we do not have roles in core OO yet.
+
+=head1 METHODS
+
+=over
+
+=item C<new>
+
+The constructor is used only by L<Audio::Aoede::SoundFont> and should
+not be used elsewhere.
+
+=item C<next_samples($n,$s>
+
+A method required to perform as an L<Audio::Aoede::Source>.
+Return C<$n> samples, starting at C<$s>.
+
+=item C<trailer_samples($n,$s>
+
+A method required to perform as an L<Audio::Aoede::Source>.
+Return C<$n> samples, starting at C<$s>, for a note which already has
+been released.
+
+=item C<released($offset)>
+
+A method required to perform as an L<Audio::Aoede::Source>.
+Inform the source that the note is released at the time C<$offset>.
+
+=back
+
+=head1 AUTHOR
+
+Harald Jörg, E<lt>haj@posteo.deE<gt>
+
+=head1 COPYRIGHT AND LICENSE
+
+Copyright 2025 Harald Jörg
+
+This module is free software; you may redistribute it and/or modify it
+under the same terms as Perl itself.

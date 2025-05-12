@@ -1,0 +1,311 @@
+=encoding utf8
+
+=head1 NAME
+
+Audio::Aoede::Overview - What's in here
+
+=head1 SYNOPSIS
+
+  use Audio::Aoede;
+  $A = = Audio::Aoede::new();
+  # Have the appropriate amount of fun!
+
+=head1 DESCRIPTION
+
+This repository contains a bunch of modules and programs which are not
+very closely related to each other.  Some are pretty useless and many
+are undocumented.
+
+=head1 What's in the repository
+
+=head2 Programs
+
+=over
+
+=item F<bin/aoede>
+
+Sort of a waveform editor.  Lacks a function to save, so only for
+interactive use and having fun to listen to the sounds.
+
+=item F<bin/midi_play>
+
+Usage:  C<< midi_play >> I<midi_path> I<[output_path]>
+
+=over
+
+=item C<midi_path> is the path to a MIDI file
+
+=item C<output_path> can be given to redirect the output to an audio
+file (any format your SoX can create) instead of playing the MIDI file
+directly.
+
+=back
+
+=item F<bin/mrt_play>
+
+A first attempt to play files in MRT format.  Has no support for
+L<Audio::Aoede::Timbre> and is about to be rewritten.
+
+=item F<bin/mrt_xplay>
+
+A temporary ugliness: This program allows use of different timbres for
+different tracks, but the I dislike the API.  Don't use.
+
+=item F<bin/noise>
+
+Creates noise (random sound) with various spectral properties.
+More a proof of concept than useful.
+
+=item F<bin/spectre>
+
+Alphabetically the last, this is actually the only program I regularly
+use as of today, though it does not create sound on its own.  This is
+a program with a graphical user interface (based on L<Prima>).  You
+can open audio files in all formats SoX can understand and play them
+while its frequency spectrum is shown in real time.
+
+=back
+
+=head1 MODULES
+
+=head2 F<lib/Audio/Aoede.pm>
+
+L<Audio::Aoede> is the "root module", containg some sensible defaults
+and several convenience methods.
+
+=head2 F<lib/Audio/Aoede/*>
+
+=head3 F<lib/Audio/Aoede/Chord.pm>
+
+An L<Audio::Aoede::Chord> is a container for a list of
+L<Audio::Aoede::Note> objects which sound simultaneously, with the
+same timbre and the same duration.  The list can be empty which
+indicates a rest.
+
+=head3 F<lib/Audio/Aoede/Effects/*>
+
+=head4 F<lib/Audio/Aoede/Effects/Percussive.pm>
+
+A module to add noise to any sound as an effect.  Too difficult to
+use.
+
+=head3 F<lib/Audio/Aoede/Envelope.pm>
+
+L<Audio::Aoede::Envelope> is a placeholder for an envelope role.  It
+does nothing, but it defines the relevant C<apply> method.
+
+=head3 F<lib/Audio/Aoede/Envelope/*>
+
+=head4 F<lib/Audio/Aoede/Envelope/ADSR.pm>
+
+L<Audio::Aoede::Envelope::ADSR> is a class representing an
+L<ADSR envelope|https://en.wikipedia.org/wiki/Envelope_(music)>.
+
+=head4 F<lib/Audio/Aoede/Envelope/DAHDSR.pm>
+
+L<Audio::Aoede::Envelope::DAHDSR> is the type of envelope which is
+used by L<Audio::Aoede::SoundFont>.  The objects are usually created
+from a SoundFont file with a custom constructor.
+
+=head3 F<lib/Audio/Aoede/File.pm>
+
+This class allows to read sound from a file via SoX.  It contains many
+unused methods and should be carefully reworked.
+
+=head3 F<lib/Audio/Aoede/Filter/*>
+
+This hierarchy is no longer used.  It turns out that filters
+implemented in pure Perl are too slow.
+
+=head3 F<lib/Audio/Aoede/Functions.pm>
+
+A convenience module for function generators.
+
+=head3 F<lib/Audio/Aoede/Generator.pm>
+
+L<Audio::Aoede::Generator> objects create functions which create
+functions.  This is a "generic" generator which can be used to combine
+several other generators.  It turned out that this is not very useful
+because all the combined generators are bound to the same envelope.
+Back to the drawing board.
+
+=head3 F<lib/Audio/Aoede/Generator/*>
+
+Generator objects create functions which create functions.
+
+=head4 F<lib/Audio/Aoede/Generator/Noise.pm>
+
+Creates a generator for noise with a gaussian frequency spectrum given
+a frequency and a width.
+
+=head4 F<lib/Audio/Aoede/Generator/Sine.pm>
+
+Creates a generator for sine waves.  In addition to the frequency, you
+can pass vibrato and tremolo modulators.  It is more efficient to have
+them in the generator than to apply them as effects.
+
+=head3 F<lib/Audio/Aoede/LPCM.pm>
+
+L<Audio::Aoede::LPCM> objects represent sound in LPCM format which can
+be read from and written to F<.wav> files.
+
+=head3 F<lib/Audio/Aoede/MIDI.pm>
+
+This module is unused, it contains some MIDI constants for later use.
+
+=head3 F<lib/Audio/Aoede/MusicRoll.pm>
+
+The MusicRoll modules convert plain text files to music.
+This module is just a storage module without code.
+
+=head3 F<lib/Audio/Aoede/MusicRoll/*>
+
+=head4 F<lib/Audio/Aoede/MusicRoll/Format.pod>
+
+As the name indicates, this isn't code:
+L<Audio::Aoede::MusicRoll::Format> describes the format of the text
+files which can be processed.
+
+It is sort of like MIDI, but with less features.  I created it because
+I found the binary MIDI format cumbersome to write.
+
+=head4 F<lib/Audio/Aoede/MusicRoll/Parser.pm>
+
+L<Audio::Aoede::MusicRoll::Parser> processes our text format.  It gave
+me an excuse to learn some advanced features of the Perl regular
+expressions engine, in particular building grammar components with
+C<(?(DEFINE)>.  Contrary to popular belief, it I<is> possible to
+evaluate recursive syntax with Perl's regular expressions.
+
+=head4 F<lib/Audio/Aoede/MusicRoll/Section.pm>
+
+L<Audio::Aoede::MusicRoll::Section> is a part of an Aoede music roll.
+Each section in a music roll has its own number of tracks and tempo.
+
+The module is just storage without methods.
+
+=head3 F<lib/Audio/Aoede/Note.pm>
+
+An Object of L<Audio::Aoede::Note> represents a single note by its
+name in "Scientific Patch Notation".  The object is usually created by
+parsing a note string like C<C#4>.  A note can get a timbre assigned,
+to allow individual notes to stand out.  This is not yet used.
+
+=head3 F<lib/Audio/Aoede/Player.pm>
+
+A generic class wrapping different output modules.  Only one of them
+(see next section) is currently in use.  The others in the same
+directory are just proof-of-concept for various libraries with limited
+(or even buggy) features.
+
+=head3 F<lib/Audio/Aoede/Player/SoX.pm>
+
+L<Audio::Aoede::Player::SoX> is the interface to the command line
+program F<sox> which is available on Linux and Windows.
+
+=head3 F<lib/Audio/Aoede/Recorder.pm>
+
+A generic class wrapping different input modules.
+
+=head3 F<lib/Audio/Aoede/Recorder/SoX.pm>
+
+L<Audio::Aoede::Recorder::PortAudio> uses the CPAN module
+L<Audio::PortAudio> for input.  It works on Linux only, "works"
+meaning that it emits useless error messages which are suppressed.  On
+the plus side, this recorder allows recording from a microphone
+without too much delay before the recorded sound is audible.
+
+L<Audio::Aoede::Recorder::SoX> is the interface to the command line
+program F<sox> which is available on Linux and Windows.
+
+=head3 F<lib/Audio/Aoede/Snapshot.pm>
+
+Unused, should be deleted.
+
+=head3 F<lib/Audio/Aoede/SoundFont.pm>
+
+A L<Audio::Aoede::SoundFont> object represents a SoundFont file.
+Given a channel, note, patch, and velocity from a MIDI event it
+provides the L<Audio::Aoede::Source> objects (there can be more than
+one) needed to play the tone.
+
+=head3 F<lib/Audio/Aoede/SoundFont/*>
+
+The Perl classes in this directory represent SoundFont elements:
+presets, samples, and envelopes.  There's one "special" file, see next
+section.
+
+=head3 F<lib/Audio/Aoede/SoundFont/Resample.pd>
+
+This is not a pure-perl module, but needs to be pre-processed by
+L<PDL::PP>.  The usual Perl build process takes care for that, but
+this means that you can not run this module directly from a repository
+checkout, and you need a C compiler which can compile libraries for
+your Perl.
+
+=head3 F<lib/Audio/Aoede/Source.pm>
+
+A "source" in Aoede is something which provides sound samples.  The
+generic source in L<Audio::Aoede::Source> holds a function and a list
+of effects.
+
+Aoede sources must provide a "interface" so that they can be used
+interchangably by other classes.  Some Perl OO systems support "roles"
+for interface definition, but core OO does not yet, so as of now it is
+just in documentation.
+
+=head3 F<lib/Audio/Aoede/Source/SoundFont.pm>
+
+An L<Audio::Aoede::Source::SoundFont> source obtains its parameters
+from a SoundFont file.
+
+=head3 F<lib/Audio/Aoede/Timbre.pm>
+
+This part is the most immature of all.
+
+=head3 F<lib/Audio/Aoede/Tone.pm>
+
+An L<Audio::Aoede::Tone> object can sequence a note given by its pitch
+and duration, using the note's timbre to apply harmonic overtones and
+effects.
+
+=head3 F<lib/Audio/Aoede/Track.pm>
+
+L<Audio::Aoede::Track> is a plain container for a part of an
+L<Audio::Aoede::Voice>.
+
+=head3 F<lib/Audio/Aoede/Tuning.pm>
+
+This is another interface module: It manages the mapping from note
+names to frequencies.  The current implementation only has "equal"
+tuning which seems to be almost exclusively used by digital music
+these days.
+
+=head3 F<lib/Audio/Aoede/UI/*>
+
+This directory hosts modules using the L<Prima> toolkit.  They are too
+volatile to describe in more detail.
+
+=head3 F<lib/Audio/Aoede/Units.pm>
+
+L<Audio::Aoede::Units> is a utility module containing constants and
+conversion routines between units used in SoundFont, MIDI; and Aoede's
+API.
+
+=head3 F<lib/Audio/Aoede/Voice.pm>
+
+An L<Audio::Aoede::Voice> ingests L<Audio::Aoede::Track> objects and
+converts the named notes within these to samples via
+L<Audio::Aoede::Tone> objects.
+
+=head1 AUTHOR
+
+Harald Jörg, E<lt>haj@posteo.deE<gt>
+
+=head1 COPYRIGHT AND LICENSE
+
+Copyright 2025 Harald Jörg
+
+This module is part of the L<Audio::Aoede> suite. It is free software;
+you may redistribute it and/or modify it under the same terms as Perl
+itself.

@@ -87,9 +87,11 @@ my @voices;
 my $n_samples = 0;
 for my $section ($music_roll->sections) {
     for my ($i_track,$track) (indexed $section->tracks) {
-        $track->set_timbre($voice_properties[$i_track]{timbre} // $timbre_sine);
         if (! $voices[$i_track]) {
-            $voices[$i_track] = Audio::Aoede::Voice->new(rate => $rate);
+            my $timbre = $voice_properties[$i_track]{timbre}
+                // $timbre_sine;
+            $voices[$i_track] = Audio::Aoede::Voice->new(rate => $rate,
+                                                         timbre => $timbre);
             $n_samples  and do {
                 $voices[$i_track]->add_samples(zeroes($n_samples));
             };

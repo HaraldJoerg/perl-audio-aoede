@@ -29,9 +29,10 @@ my $aoede = Audio::Aoede->new(out => $out);
 my $rate      = $aoede->rate;
 my $noise = Audio::Aoede::Noise::colored(ucfirst $color,
                                          'Audio::Aoede::Noise',
+                                         rate      => $rate,
                                          bandwidth => $rate/2,
-                                         min_f => $min_f,
-                                         max_f => $max_f);
+                                         min_f     => $min_f,
+                                         max_f     => $max_f);
 
 my $n_samples = $duration * $rate;
 # Add an envelope to quench audible glitches at the beginning or end
@@ -41,12 +42,12 @@ my $envelope = Audio::Aoede::Envelope::ADSR->new(
     sustain => 1,
     release => 1/200);
 
-my $samples = $envelope->apply($noise->samples($n_samples),0);
+my $samples = $envelope->apply($noise->next_samples($n_samples),0);
 my $carry_amplitude = $envelope->release($n_samples);
-my $carry   = $carry_amplitude * $noise->samples($carry_amplitude->dim(0),
+my $carry   = $carry_amplitude * $noise->next_samples($carry_amplitude->dim(0),
                                                  $n_samples);
 
-$aoede->play_samples($samples->append($carry));
+$aoede->play($samples->append($carry));
 
 __END__
 

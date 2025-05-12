@@ -10,7 +10,7 @@ use Audio::Aoede::Generator::Noise;
 use Audio::Aoede::Generator::Sine;
 
 my $A = Audio::Aoede->new;
-my $rate = 44100;
+my $rate = $A->rate;
 my $vibrato = $A->vibrato (width => 0.0, frequency => 3);
 my $tremolo = $A->tremolo (width => 0.05, frequency => 2);
 
@@ -18,13 +18,14 @@ my $t_organ = Audio::Aoede::Timbre->new(
     generator => Audio::Aoede::Generator::Sine->new(
         vibrato => $vibrato,
         tremolo => $tremolo,
+        rate    => $rate,
     ),
     harmonics => [1,0.5,0.5,0.5,0.2,0.1],
     effects => [
         sub ($frequency) {
             return Audio::Aoede::Envelope::ADSR->new(
                 attack  => 1/200,
-                decay   => 1,
+                decay   => 3,
                 sustain => 0,
                 release => 1/500,
             );
@@ -35,7 +36,9 @@ my $t_organ = Audio::Aoede::Timbre->new(
 my $t_vibra = Audio::Aoede::Timbre::Vibraphone::vibraphone();
 
 my $t_h_effect = Audio::Aoede::Timbre->new(
-    generator => Audio::Aoede::Generator::Sine->new(),
+    generator => Audio::Aoede::Generator::Sine->new(
+        rate    => $rate,
+    ),
     harmonics => [0.1],
     effects => [
         sub ($frequency) {
@@ -69,6 +72,6 @@ my @res =
       channels => { left => 2.0, right => 1.0 },
   },
     { timbre   => $t_h_effect,
-      channels => { left => 1.0, right => 0.5 },
+      channels => { left => 3.0, right => 1.5 },
   },
 );

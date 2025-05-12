@@ -157,5 +157,16 @@ This phase begins at the key-off event.  The envelope value decreases linearly f
 
 =back
 
-=cut
+=head1 AUTHOR
+
+Harald Jörg, E<lt>haj@posteo.deE<gt>
+
+=head1 COPYRIGHT AND LICENSE
+
+Copyright 2025 Harald Jörg
+
+This module is part of the L<Audio::Aoede> suite. It is free software;
+you may redistribute it and/or modify it under the same terms as Perl
+itself.
+
 

@@ -10,31 +10,39 @@ use PDL;
 use PDL::FFT;
 
 method filter ($data) {
-    my $float = float($data);
-    realfft($float);
-    my $separator = $float->dim(0)/2;
-    # ---
-    # Hack: A radical lowpass filter
-    #$float->slice([$separator*0.03,$separator-1]) .= 0;
-    #$float->slice([$separator*1.03,2*$separator-1]) .= 0;
-    # ---
-    # linear decay
-    # my $decay = 1 - (sequence($separator)) / $separator;
-    # $float->slice([0,$separator-1]) *= $decay;
-    # $float->slice([$separator,-1]) *= $decay;
-    # ---
-    # linear rise
-    # my $decay = (sequence($separator) +1) / $separator;
-    # $float->slice([0,$separator-1]) *= $decay;
-    # $float->slice([$separator,-1]) *= $decay;
-    # ---
-    # exponential decay
-    # my $x_factor = 100;
-    # my $sequence = exp(- $x_factor * (sequence($separator) +1) / $separator);
-    # $float->slice([0,$separator-1]) *= $sequence;
-    # $float->slice([$separator,-1]) *= $sequence;
-    realifft($float);
-    return short($float);
+    return $data;
 }
 
 1;
+
+__END__
+
+=encoding utf8
+
+=head1 NAME
+
+Audio::Aoede::Filter::Identity - A filter that does nothing
+
+=head1 SYNOPSIS
+
+  use Audio::Aoede::Filter::Identity;
+  # Just don't.  Why would you?
+
+=head1 DESCRIPTION
+
+This module is used for diagnostics only - if something goes wrong
+with a filter, it helps to find whether the bug is in the filter or in
+the way it is used.  Replace the bad filter by identity and see what
+happens.
+
+=head1 AUTHOR
+
+Harald Jörg, E<lt>haj@posteo.deE<gt>
+
+=head1 COPYRIGHT AND LICENSE
+
+Copyright 2025 Harald Jörg
+
+This module is part of the L<Audio::Aoede> suite. It is free software;
+you may redistribute it and/or modify it under the same terms as Perl
+itself.

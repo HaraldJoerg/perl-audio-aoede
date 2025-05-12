@@ -16,7 +16,6 @@ use Audio::Aoede::Units qw( seconds_per_note );
 
 field $intensity :param = 1;
 field $duration  :param = undef; # in "notes" units
-field $timbre    :param = undef;
 field $pitches   :param;
 field @overtones;
 
@@ -37,7 +36,7 @@ method trailer ($first) {
 }
 
 
-method sequence ($rate,$bpm) {
+method sequence ($rate,$bpm,$timbre) {
     my $generator = $timbre->generator;
     for my $frequency (@$pitches) {
       OVERTONE:

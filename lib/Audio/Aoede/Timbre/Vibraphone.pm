@@ -14,9 +14,9 @@ sub vibraphone () {
             sub ($frequency ) {
                 return Audio::Aoede::Envelope::ADSR->new(
                     attack  => 1/500,
-                    decay   => 2400/$frequency,
+                    decay   => 9600/$frequency,
                     sustain => 0.0,
-                    release => 1/2,# * 200/$frequency,
+                    release => 2,# * 200/$frequency,
                 );
             }
         ]

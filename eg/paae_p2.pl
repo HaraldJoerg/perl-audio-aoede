@@ -13,6 +13,7 @@ my $t_organ = Audio::Aoede::Timbre->new(
     generator => Audio::Aoede::Generator::Sine->new(
         vibrato => $vibrato,
         tremolo => $tremolo,
+        rate    => $A->rate,
     ),
     harmonics => [1,0.5,0.5,0.5,0.2,0.1],#1/3,1,1/5,0.0,0.0,1,(0)x7,1/2,(0)x15,0.5],
     effects => [

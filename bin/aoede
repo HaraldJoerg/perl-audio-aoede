@@ -183,7 +183,7 @@ sub reset_sources {
         );
         $combined = Audio::Aoede::Source->new(
             rate => $rate,
-            function => sub ($n_samples,$rate,$first) {
+            function => sub ($n_samples,$first) {
                 my $samples = $harmonic->next_samples($n_samples,$first);
             },
             effects => [$envelope],

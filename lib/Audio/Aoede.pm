@@ -17,13 +17,13 @@ class Audio::Aoede {
     use Audio::Aoede::Units qw( PI );
     use Audio::Aoede::Functions qw( :waves );
 
-    field $rate   :param = 44100;
-    field $channels = 1;
+    field $rate     :param :reader = 44100;
+    field $channels :param = 1;
     field $bits = 16;
-    field $out    :param = undef;
-    field $tuning :param = 'equal';
+    field $out      :param = undef;
+    field $tuning   :param = 'equal';
 
-    my $amplitude = 2**14;
+    my $amplitude = 0.8*2**15;
 
     my $A;
     ADJUST {
@@ -41,9 +41,6 @@ class Audio::Aoede {
         }
     }
 
-    method rate {
-        return $rate;
-    }
 
     method play ($piddle) {
         require Audio::Aoede::Player::SoX;
@@ -74,23 +71,6 @@ class Audio::Aoede {
     }
 
 
-    # FIXME: This only works for a single channel
-    method play_samples ($samples) {
-        my $max = max($samples->abs);
-        if ($max > 1) {
-            $samples /= $max;
-        }
-        my $data = short($samples * $amplitude);
-        require Audio::Aoede::Player::SoX;
-        my $player = Audio::Aoede::Player::SoX->new(
-            rate     => $rate,
-            bits     => $bits,
-            channels => $channels,
-            out      => $out // '--default',
-        );
-        $player->play_piddle($data,$out);
-    }
-
     method play_roll ($path) {
         require Audio::Aoede::MusicRoll;
         my $music_roll = Audio::Aoede::MusicRoll->from_file($path);
@@ -99,12 +79,14 @@ class Audio::Aoede {
         for my $section ($music_roll->sections) {
             my $i_track = 0;
             for my $track ($section->tracks) {
-                require Audio::Aoede::Timbre::Vibraphone;
-                $track->set_timbre(Audio::Aoede::Timbre::Vibraphone::vibraphone());
                 if (! $voices[$i_track]) {
+                    require Audio::Aoede::Timbre::Vibraphone;
+                    my $timbre = Audio::Aoede::Timbre::Vibraphone::vibraphone();
                     $voices[$i_track] =
                         Audio::Aoede::Voice->new(rate => $rate,
-                                                 tuning => $tuning);
+                                                 tuning => $tuning,
+                                                 timbre => $timbre,
+                                                );
                     $n_samples  and do {
                         $voices[$i_track]->add_samples(zeroes($n_samples));
                     };
@@ -172,8 +154,7 @@ class Audio::Aoede {
         require Audio::Aoede::Note;
         require Audio::Aoede::Track;
         require Audio::Aoede::Timbre::Vibraphone;
-        my $track = Audio::Aoede::Track->new
-            (timbre => Audio::Aoede::Timbre::Vibraphone::vibraphone());
+        my $track = Audio::Aoede::Track->new();
         for my ($note,$duration) (@notes) {
             $track->add_notes(
                 Audio::Aoede::Chord->new(
@@ -184,8 +165,10 @@ class Audio::Aoede {
                 )
             );
         }
-        my $voice =  Audio::Aoede::Voice->new(rate => $rate,
-                                              tuning => $tuning);
+        my $timbre = Audio::Aoede::Timbre::Vibraphone::vibraphone();
+        my $voice =  Audio::Aoede::Voice->new(rate   => $rate,
+                                              tuning => $tuning,
+                                              timbre => $timbre);
         $voice->add_notes($track);
         my $samples = $voice->samples->append($voice->carry);
         $self->write($samples);
@@ -264,12 +247,13 @@ class Audio::Aoede {
         $color = ucfirst $color;
         my $noise = Audio::Aoede::Noise::colored(
             $color,
+            rate => $rate,
             'Audio::Aoede::Noise',
             bandwidth => $rate/2,
             %params,
         );
         return sub ($n_samples, $since = 0) {
-            return $noise->samples($n_samples,$since);
+            return $noise->next_samples($n_samples,$since);
         }
     }
 
@@ -307,8 +291,8 @@ Audio::Aoede - the entry point to Aoede sound
 
 =head1 SYNOPSIS
 
-  my $aoede = Audio::Aoede->new(player => 'sox');
-  $aoede->play_roll($path);
+  my $A = Audio::Aoede->new();
+  $A->play_roll($path);
 
 =head1 DESCRIPTION
 
@@ -316,10 +300,16 @@ In case you are wondering: Aoede is the muse of voice and song in
 ancient Boeotia.  I was looking for a name unlikely to collide with
 anything else.
 
-This module is the untidy catch-all for stuff which has failed to find
-its place in the class taxonomy so far.  Expect its contents to be
-rather volatile, and the interface unstable.  Methods not documented
-here are likely to be moved elsewhere without notice.
+L<Audio::Aoede::Overview> shows what is in this distribution.
+
+This module itself is the untidy catch-all for stuff which has failed
+to find its place in the class taxonomy so far.  Expect its contents
+to be rather volatile, and the interface unstable.  Methods not
+documented here are likely to be moved elsewhere without notice.
+
+The object of this class is meant to be (but not enforced to be) a
+singleton.  It provides pragmatic defaults and easy-to-use convenience
+methods.
 
 =head1 METHODS
 
@@ -343,42 +333,117 @@ The number of audio channels.  Defaults to 1.
 Right now, more than one channel is not supported by code in this
 repository.
 
-=item bits
+=item C<out>
 
-The number of bits per audio sample.  Defaults to 16.
+The path to the output file.  If not provided (or undefined), output
+is immediately sent to the default sound device.
 
-This should not even be a parameter right now because the software
-only works with 16 bits.
+If a path is given, then its extension is used to infer the audio
+format.  Any format which is supported by your installation of SoX is
+permitted.  The list of permitted formats / extensions varies between
+operating systems, please consult your local documentation:
+C<sox --help-format all>
 
-It is very unlikely that we'll ever support 24-bit sound: The current
-implementation uses L<PDL>, therefore a sample must be represented by
-a data type known by PDL.  The data types of PDL are native types of
-the C programming language, and C has no type with a width of 24 bits.
-
-=item player
-
-Per default, Aoede writes its sound output as WAV files.  I recommend
-to install L<SoX|https://sourceforge.net/projects/sox/> (also
-available as package C<sox> in Linux distributions).  If you have done so, you can activate this player as
-
-   player => 'sox'
-
-SoX can be used to play sound directly on your sound card, but also to
-convert Aoede sound to a variety of sound formats.  We have no
-interface for this right now, sorry.
+C<.wav> for (Microsoft) WaveAudio files and C<.ogg> for Ogg Vorbis
+compressed encoding should work everywhere.
 
 =back
+
+=item C<rate>
+
+Returns the sample rate given when the object was created.
+
+=item C<play($samples)>
+
+Play the samples given as parameter.  The samples are normalized to
+the maximum amplitude of the player, but only if the amplitude of
+samples is not in the interval [-1.0,1.0].
+
+The samples must provide the number of channels given when
+constructing the object.
 
 =item C<play_roll($path)>
 
 Play a music roll presented as a
 L<MRT file|Audio::Aoede::MusicRoll::Format>.
 
-=item C<play_samples>
+While this is nice and convenient, it is actually rather incomplete:
+It works with one channel only, and there's a hardwired mapping of
+tracks to timbres.  I have not yet found an API I like for that.
 
-Play the samples given as parameter.  The samples are normalized to
-the maximum amplitude of the player, but only if the amplitude of
-samples is not in the interval [-1.0,1.0].
+=item C<play_notes(@notes)>
+
+Play notes given as a flat list of note names and durations.  Example:
+
+  @notes = ('C4' => 1/4, 'E4' => 1/4, 'G4' => 1/4, 'E4+G4+C5' => 1/2);
+  $A->play_notes(@notes);
+
+Note that the "fat comma" C<< => >> is purely for decoration and ease
+of reading.  This is a list, not to be used as a hash!
+
+=item C<spectrum($samples,$limit)>
+
+Returns a power spectrum for the PDL array given in C<$samples>.  The
+second parameter C<$limit> is optional, if given, then the spectrum is
+only returned up to that frequency.  Per default, the spectrum is
+provided up to its maximum frequency which is equal to half the sample
+rate ("Nyquist frequency").
+
+The number of available elements in the spectrum is half of the number
+of samples given if no C<$limit> is set.  If, for example, you provide
+on second of samples, then you get a spectral resolution of 1Hz.  A
+higher number of samples gives a better spectral resolution, but a
+worse time resolution (Küpfmüllers uncertainty principle).
+
+=back
+
+=head1 BUGS
+
+=over
+
+=item There is no API for timbre declaration
+
+We have some features to define timbre, but many of them need
+functions which return functions.  This is difficult to write.  The
+work on SoundFont synthesis is supposed to help to define parameters
+for a declarative route to a timbre.  I do not want to drop the
+Aoede-specific "sound from scratch" features like define a set of sine
+functions with overtones, though.
+
+I also have not yet found a way to declare the use of timbre in MRT
+files.  MIDI uses numbers for instruments (which it calls "programs"),
+SoundFont files use different names for the same number.  I might at
+some time use
+L<General MIDI|https://en.wikipedia.org/wiki/General_MIDI> (GM1)
+as an inspiration, but I am way too lazy to define the full GM1 set.
+
+
+=item The handling of the sample rate is constantly changing
+
+I am still unsure what's the best way to define the sample rate for
+the various Aoede components.  The sound generation, obviously, needs
+to use a consistent sample rate which suggests it should be a global
+value.  As such it is available with the L<< /C<rate> >> method.  This
+value is also used when Aoede reads sound files via SoX, regardless of
+the sample rate of the file itself.
+
+However, when I<reading> sound from a source which provides raw
+samples, for example from SoundFont files, then we need to respect
+their metadata.  Also, some modules and methods can operate at any
+sample rate, so it would make sense to pass the rate to these methods.
+
+Currently the classes which need to operate at a fixed rate all expect
+the rate to be passed as constructor parameters.  I might want to make
+all these optional and, if not given, pull it from the Audio::Aoede
+singleton object.  This means that this object needs to be created
+explicitly before all others if you want a non-default rate.
+
+=item The MRT player(s) need(s) cleanup
+
+The original MRT player F<bin/mrt_play> has a hardwired timbre and
+only one channel.  Lifting these restrictions is being hacked in
+F<bin/mrt_xplay>, stuff I need has been simply copied into that file.
+This is stalled because L</"There is no API for timbre declaration>.
 
 =back
 
@@ -388,7 +453,7 @@ Harald Jörg, E<lt>haj@posteo.deE<gt>
 
 =head1 COPYRIGHT AND LICENSE
 
-Copyright 2024 Harald Jörg
+Copyright 2024-2025 Harald Jörg
 
 This module is free software; you may redistribute it and/or modify it
 under the same terms as Perl itself.

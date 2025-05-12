@@ -12,14 +12,16 @@ use PDL;
 use constant PI => atan2(0,-1);
 
 field $width :param = 0.1;
+field $rate  :param;
 
 method function ($frequency) {
-    return sub ($n_samples,$rate,$first = 0) {
-        my $noise = Audio::Aoede::Noise->gaussian(
-            frequency => $frequency,
-            width     => $width,
-        );
-        return $noise->samples($n_samples,$first);
+    my $noise = Audio::Aoede::Noise->gaussian(
+        rate      => $rate,
+        frequency => $frequency,
+        width     => $width,
+    );
+    return sub ($n_samples,$first = 0) {
+        return $noise->next_samples($n_samples,$first);
     };
 }
 

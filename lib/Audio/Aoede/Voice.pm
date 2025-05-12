@@ -8,6 +8,7 @@ no warnings 'experimental';
 
 class Audio::Aoede::Voice {
     use PDL;
+    use feature 'isa';
 
     use Audio::Aoede::Tone;
 
@@ -15,6 +16,7 @@ class Audio::Aoede::Voice {
     field $carry   = pdl([]);
     field $rate   :param;
     field $tuning :param = undef;
+    field $timbre :param = undef;
 
     my %dynamics = (
         fff => 1.0,
@@ -35,23 +37,24 @@ class Audio::Aoede::Voice {
     }
 
     method add_notes($track,$bpm = 120,$dynamic = 'mf') {
-        my $timbre = $track->timbre;
-        for my $note ($track->notes) {
+        my @notes = $track isa Audio::Aoede::Track
+            ? $track->notes
+            : @$track;
+        for my $note (@notes) {
             my @pitches = $tuning->note2pitch($note);
             my $tone = Audio::Aoede::Tone->new(
-                intensity => $dynamics{$dynamic} // 0.5,
-                duration => $note->duration,
-                timbre => $timbre,
-                pitches => \@pitches,
-                );
-            my ($tone_samples,$tone_carry) = $tone->sequence($rate,$bpm);
+                intensity => $dynamics{$dynamic} // $dynamic,
+                duration  => $note->duration,
+                pitches   => \@pitches,
+            );
+            my $note_timbre = $note->timbre // $timbre;
+            my ($tone_samples,$tone_carry) = $tone->sequence($rate,$bpm,$note_timbre);
             my $n_samples =  $tone_samples->dim(0);
             if ($carry->dim(0) > $n_samples) {
                 $tone_samples += $carry->slice([0,$n_samples-1]);
                 $carry = pdl($carry->slice([$n_samples,$carry->dim(0)-1]),
                              $tone_carry)->transpose->sumover;
-            }
-            else {
+            } else {
                 $tone_samples = pdl($tone_samples,$carry)->transpose->sumover;
                 $carry = $tone_carry;
             }
@@ -73,8 +76,9 @@ class Audio::Aoede::Voice {
 
 
     method samples () {
+        return empty if $samples->isempty;
         my $norm = $samples->abs->max;
-        return $norm ? $samples/$norm : $samples;
+        return $norm > 1 ? $samples/$norm : $samples;
     }
 
 
@@ -95,8 +99,9 @@ class Audio::Aoede::Voice {
 
 
     method carry () {
+        return empty if $samples->isempty;
         my $norm = $samples->abs->max;
-        return $norm ? $carry/$norm : $carry;
+        return $norm > 1 ? $carry/$norm : $carry;
     }
 }
 
@@ -144,6 +149,10 @@ The number of samples per second to be created.
 The rule to convert a L<Audio::Aoede::Note> object into a
 pitch value, given as an object which provides a method
 C<note2pitch>.
+
+=item C<timbre>
+
+An L<Audio::Aoede::Timbre> object describing how this voice sounds.
 
 =back
 

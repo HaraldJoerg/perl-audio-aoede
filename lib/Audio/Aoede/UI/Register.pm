@@ -8,8 +8,8 @@ class Audio::Aoede::UI::Register {
     use Prima;
     field $stop_line;
     field @volumes;
-    field $n_stops        :param = 50;
-    field $stops_per_line :param = 25;
+    field $n_stops        :param = 20;
+    field $stops_per_line :param = 20;
     field $i_stop                = 0;
     field $widget;
     field $trigger = sub { };

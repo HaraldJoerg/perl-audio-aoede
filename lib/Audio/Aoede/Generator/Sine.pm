@@ -13,13 +13,14 @@ use constant PI => atan2(0,-1);
 
 field $vibrato :param = undef;
 field $tremolo :param = undef;
+field $rate    :param;
 
 method function ($frequency) {
-    return sub ($n_samples,$rate,$first = 0) {
+    return sub ($n_samples,$first = 0) {
         my $samples_per_period = $rate / $frequency;
         my $norm = 2 * PI() / $samples_per_period;
-        $first -= $samples_per_period * int $first/$samples_per_period;
-        my $phase = (sequence($n_samples) + $first) * $norm;
+        my $shift = $first - $samples_per_period * int($first/$samples_per_period);
+        my $phase = (sequence($n_samples) + $shift) * $norm;
         if ($vibrato) {
             my $samples_per_vperiod = $rate / $vibrato->frequency;
             my $vnorm = 2 * PI() / $samples_per_vperiod;

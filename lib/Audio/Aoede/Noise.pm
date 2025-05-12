@@ -17,7 +17,8 @@ class Audio::Aoede::Noise {
     use PDL::FFT;
     use List::Util (); # imports collide with PDL
 
-    field $bandwidth :reader :param = 22050;
+    field $rate      :param;
+    field $bandwidth :reader :param = $rate/2;
     field $min_f     :param = 20;
     field $max_f     :param = $bandwidth;
     field $Data;
@@ -46,8 +47,8 @@ class Audio::Aoede::Noise {
         $min_f >= 1              or  $min_f = 1;
         $max_f <= $bandwidth     or  $max_f = $bandwidth;
         $max_f >  $min_f         or  $max_f = $min_f + 1;
-	$min_f = int($min_f + 0.5);
-	$max_f = int($max_f + 0.5);
+        $min_f = int($min_f + 0.5);
+        $max_f = int($max_f + 0.5);
         my $real_slice = [$min_f-1,$max_f-1];
         my $imag_slice = [$bandwidth+$min_f-1,$bandwidth+$max_f-1];
         my $D_spectrum = zeroes(2*$bandwidth);
@@ -59,33 +60,33 @@ class Audio::Aoede::Noise {
         $Data /= $Data->abs->max;
     }
 
-    method samples ($n_samples,$start_sample = 0) {
-	my $packet_size = 2 * $bandwidth;
-	$start_sample = int $start_sample;
-	$current = $start_sample % $packet_size;
-	my $result;
-	if ($current + $n_samples < $packet_size) {
-	    $result = $Data->slice([$current,$current+$n_samples-1]);
-	}
-	elsif ($current + $n_samples == $packet_size) {
-	    $result = $Data->slice([$current,$packet_size-1]);
-	}
-	else {
-	    # wraparound needed (or just too many samples required)
-	    $result = $Data->slice([$current,$packet_size-1]);
-	    $n_samples -= ($packet_size - $current);
+    method next_samples ($n_samples,$first = 0) {
+        my $packet_size = 2 * $bandwidth;
+        $first = int $first;
+        $current = $first % $packet_size;
+        my $result;
+        if ($current + $n_samples < $packet_size) {
+            $result = $Data->slice([$current,$current+$n_samples-1]);
+        }
+        elsif ($current + $n_samples == $packet_size) {
+            $result = $Data->slice([$current,$packet_size-1]);
+        }
+        else {
+            # wraparound needed (or just too many samples required)
+            $result = $Data->slice([$current,$packet_size-1]);
+            $n_samples -= ($packet_size - $current);
 
-	    my $full = int($n_samples / $packet_size);
-	    my $part = $n_samples - $full*$packet_size; # % $packet_size;
-	    for (0..$full-1) {
-		$result = $result->append($Data);
-	    }
-	    if ($part) {
-		$result = $result->append($Data->slice([0,$part-1]));
-	    }
-	}
-	$result = $result->copy; # don't clobber $Data
-	return $result;
+            my $full = int($n_samples / $packet_size);
+            my $part = $n_samples - $full*$packet_size; # % $packet_size;
+            for (0..$full-1) {
+                $result = $result->append($Data);
+            }
+            if ($part) {
+                $result = $result->append($Data->slice([0,$part-1]));
+            }
+        }
+        $result = $result->copy; # don't clobber $Data
+        return $result;
     }
 
     sub colored {
@@ -183,20 +184,20 @@ class Audio::Aoede::Noise::Gaussian :isa(Audio::Aoede::Noise) {
     field $width     :param;
     field $slice;
     ADJUST {
-	$slice = [19,$self->bandwidth-1];
+        $slice = [19,$self->bandwidth-1];
     }
 
     method factor {
-	my $Df = sequence($self->bandwidth)->slice([19,$self->bandwidth-1]);
-	my $De = log($Df/$frequency);
-	$De *= $De;
-	return exp($De/$width);
+        my $Df = sequence($self->bandwidth)->slice([19,$self->bandwidth-1]);
+        my $De = log($Df/$frequency);
+        $De *= $De;
+        return exp($De/$width);
     }
     method _real {
-	return $self->D_sin->slice([19,$self->bandwidth-1]) / $self->factor();
+        return $self->D_sin->slice([19,$self->bandwidth-1]) / $self->factor();
     }
     method _imag {
-	return $self->D_cos->slice([19,$self->bandwidth-1]) / $self->factor();
+        return $self->D_cos->slice([19,$self->bandwidth-1]) / $self->factor();
     }
 }
 

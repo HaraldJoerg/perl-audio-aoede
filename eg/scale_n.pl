@@ -3,13 +3,14 @@ use feature 'signatures';
 no warnings 'experimental';
 use Audio::Aoede::Timbre;
 my $A = Audio::Aoede->new;
-my $rate = 44100;
+my $rate    = $A->rate;
 my $vibrato = $A->vibrato (width => 5, frequency => 3);
 my $tremolo = $A->tremolo (width => 0.2, frequency => 2);
 return (
     {
         timbre => Audio::Aoede::Timbre->new(
             generator => Audio::Aoede::Generator::Sine->new(
+                rate    => $rate,
                 vibrato => $vibrato,
                 tremolo => $tremolo,
             ),

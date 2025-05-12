@@ -13,6 +13,7 @@ my $t_organ = Audio::Aoede::Timbre->new(
     generator => Audio::Aoede::Generator::Sine->new(
         vibrato => $vibrato,
         tremolo => $tremolo,
+        rate    => $A->rate,
     ),
     harmonics => [1,1,1/3,1,1/5,0.0,0.0,1,(0)x7,1/2,(0)x15,0.5],
     effects => [
@@ -31,6 +32,7 @@ my $t_organ2 = Audio::Aoede::Timbre->new(
     generator => Audio::Aoede::Generator::Sine->new(
         vibrato => $A->vibrato (width => 0.5, frequency => 4),
         tremolo => $A->tremolo (width => 0., frequency => 4),
+        rate    => $A->rate,
     ),
     harmonics => [1,1,1/3,1,1/5,0.0,0.0,1,(0)x7,1/2,(0)x15,0.5],
     effects => [
@@ -48,6 +50,7 @@ my $t_organ2 = Audio::Aoede::Timbre->new(
 my $t_gnomus = Audio::Aoede::Timbre->new(
     generator => Audio::Aoede::Generator::Sine->new(
         vibrato => $A->vibrato (width => 0.1, frequency => 3),
+        rate    => $A->rate,
     ),
     harmonics => [1.0,0.5,1.0,0.5,1.0,1.0,(0.0)x8,1,1,1,1,1],
     effects => [
@@ -65,6 +68,7 @@ my $t_gnomus = Audio::Aoede::Timbre->new(
 my $t5 = Audio::Aoede::Timbre->new(
     generator => Audio::Aoede::Generator::Sine->new(
         vibrato => $A->vibrato(width => 0.5, frequency => 3),
+        rate    => $A->rate,
     ),
     harmonics => [1.0,0.5,0.333],
     effects => [

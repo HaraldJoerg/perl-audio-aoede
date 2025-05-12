@@ -17,8 +17,10 @@ class Audio::Aoede::Envelope::ADSR {
     field $decay_samples;
     field $release_samples;
 
-    # FIXME: We can get a concave decay with a formula like this:
-    # $s = zeroes(10)->xlinvals((1-$sustain)**0.5,0)->pow(2)+$sustain
+    # Exponential decay never hits zero, so we need an arbitrary
+    # threshold (taken from SoundFont)
+    my $silent = 1.0E-5;
+
     ADJUST {
         my $rate = Audio::Aoede->instance->rate;
         # Convert numbers of samples to 1D PDL arrays
@@ -29,11 +31,14 @@ class Audio::Aoede::Envelope::ADSR {
             $attack_samples = undef;
         }
 
+        if ($sustain < $silent) {
+            $sustain = $silent;
+        }
+
         if ($decay) {
             $decay = int ($decay * $rate);
-            # FIXME: Decay should be exponential
-            $decay_samples = zeroes($decay)->xlinvals(($decay-1)/
-                                                      $decay,$sustain);
+            my $sequence = (1+sequence($decay)) / $decay;
+            $decay_samples = $sustain ** $sequence;
         } else {
             $decay_samples = undef;
         }
@@ -42,9 +47,8 @@ class Audio::Aoede::Envelope::ADSR {
         # at the time of releasing
         if ($release) {
             $release = int ($release * $rate);
-            # FIXME: Release should be exponential
-            $release_samples = zeroes($release)->xlinvals(($release-1)/
-                                                          $release,0);
+            my $sequence = (1+sequence($release)) / $release;
+            $release_samples = $silent ** $sequence;
         }
         else {
             $release_samples = undef;
@@ -138,9 +142,8 @@ class Audio::Aoede::Envelope::ADSR {
         if ($attack  and  $first < $attack) {
             $amplitude = $first / $attack;
         }
-        elsif ($decay  and  $first + $attack < $decay) {
-            $amplitude  = 1.0
-                + ((-1.0 + $sustain) / $decay) * ($first - $attack);
+        elsif ($decay  and  $first - $attack < $decay) {
+            $amplitude = $sustain ** (($first-$attack)/$decay);
         }
         else {
             $amplitude = $sustain;

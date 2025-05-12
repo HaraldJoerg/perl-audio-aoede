@@ -27,7 +27,7 @@ my $player = Audio::Aoede::Player::SoX->new(
 
 # FIXME: The next line should be a configuration item
 my $soundfont = '/usr/share/sounds/sf2/sf_GMbank.sf2';
-# $soundfont = '/usr/share/sounds/sf2/FluidR3_GM.sf2';
+$soundfont = '/usr/share/sounds/sf2/FluidR3_GM.sf2';
 # $soundfont = '/usr/share/sounds/sf2/TimGM6mb.sf2';
 my $midi_path = $ARGV[0]
     or pod2usage "No MIDI file name given: Terminating.";
@@ -90,6 +90,7 @@ sub control_change ($start_time,$channel,$controller,$value) {
 
 my $attenuation = 1.0;
 my $volume      = 1.0;
+my $samples_done = 0;
 
 sub _end ($end_time) {
     # Collect and play all remaining trailers, play in batches of 0.1 seconds
@@ -101,18 +102,18 @@ sub _end ($end_time) {
             my ($source,$duration,$channel) = @$note;
             my $left  = 1/1000 * (500 - $source->pan);
             my $right = 1/1000 * (500 + $source->pan);
-            my $since   = int($end_time*$tick*$rate + 0.5);
+            my $since   = $samples_done;
             my $samples = $source->trailer_samples($n_samples,$since);
             $channels[0] += $left  * $samples;
             $channels[1] += $right * $samples;
         }
+        $samples_done += $n_samples;
         my $sound = cat(@channels)->transpose;
         my $max = $sound->abs->max;
         if ($max * $attenuation > $volume * 2**15) {
             $attenuation = $volume * 2**15 / $max;
         }
         $player->send_piddle(short ($sound * $attenuation));
-        $end_time += int($batch/$tick+0.5);
         @notes = grep { ! $_->[0]->exhausted } @notes;
     }
     say "Done!";
@@ -133,14 +134,13 @@ my %type_dispatch = (
 patch_change(128,0); # make sure we have a default patch
 $player->open_pipe;
 my $current_time = 0;
-my $samples_done = 0;
 for my $entry (@score) {
     my ($type,$start_time,@params) = @$entry;
     if ($start_time > $current_time) {
         my $todo = $start_time - $current_time;
-        my $since   = int($current_time*$tick*$rate + 0.5);
-        my $to      = int($start_time*$tick*$rate + 0.5);
-        my $n_samples = $to-$since;
+        my $n_samples = int($todo * $tick * $rate + 0.5);
+        my $since     = $samples_done;
+        $samples_done += $n_samples;
         my @channels = (zeroes($n_samples),zeroes($n_samples));
       NOTE:
         for my $note (@notes) {
@@ -158,7 +158,7 @@ for my $entry (@score) {
                 $channels[0] += $left  * $samples;
                 $channels[1] += $right * $samples;
                 $note->[1] = 0;
-                $source->released($since + $n_samples);
+                $source->released($samples_done);
             }
             else {
                 my $note_ends = int($duration * $rate * $tick + 0.5);
@@ -267,4 +267,3 @@ you may redistribute it and/or modify it under the same terms as Perl
 itself.
 
 =cut
-

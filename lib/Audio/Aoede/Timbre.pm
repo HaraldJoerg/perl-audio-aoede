@@ -9,6 +9,7 @@ no warnings 'experimental';
 class Audio::Aoede::Timbre;
 use PDL;
 use constant PI => atan2(0,-1);
+use Audio::Aoede;
 
 field $effects   :param = [];
 field @effects;
@@ -20,7 +21,9 @@ field $generator :param :reader = undef;
 ADJUST {
     if (! $generator) {
         require Audio::Aoede::Generator::Sine;
-        $generator = Audio::Aoede::Generator::Sine->new;
+        $generator = Audio::Aoede::Generator::Sine->new(
+            rate => Audio::Aoede->instance->rate,
+        );
     }
 
     @harmonics = @$harmonics;
@@ -29,7 +32,6 @@ ADJUST {
     @effects = @$effects;
     undef $effects;
 }
-
 
 
 method add_effects (@new) {

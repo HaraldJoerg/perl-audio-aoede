@@ -31,9 +31,6 @@ eg/scale_v.pl
 eg/sttos.mrt
 eg/sttos_init.pl
 eg/test_env.mrt
-junkyard/a100.wav
-junkyard/a100_formants.txt
-junkyard/a120.ogg
 lib/Audio/Aoede.pm
 lib/Audio/Aoede/.dir-locals.el
 lib/Audio/Aoede/Chord.pm
